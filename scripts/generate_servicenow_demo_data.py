@@ -24,6 +24,10 @@ JSONL_ROOT = DATASET_ROOT / "jsonl"
 
 SEED = 8675309
 BASE_TIME = datetime(2026, 5, 27, 18, 0, 0, tzinfo=timezone.utc)
+SNOW_INSTANCE = "synthetic-servicenow"
+SNOW_VENDOR = "ServiceNow"
+SNOW_PRODUCT = "IT Service Management"
+SNOW_VENDOR_PRODUCT = f"{SNOW_VENDOR} {SNOW_PRODUCT}"
 
 
 COMPANIES = [
@@ -202,7 +206,7 @@ def sys_id(rng: random.Random) -> str:
 def write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -212,10 +216,10 @@ def write_jsonl(path: Path, rows: list[dict[str, str]], table: str, source: str)
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
             event = {
+                **row,
                 "_time": json_time(parse_snow_time(row.get("sys_updated_on") or row.get("sys_created_on"))),
                 "table": table,
                 "source": source,
-                **row,
             }
             handle.write(json.dumps(event, sort_keys=True) + "\n")
 
@@ -820,20 +824,205 @@ def make_task_ci_links(
     return rows
 
 
+
+def cim_common_fields(data_model: str, dataset: str, tag: str) -> dict[str, str]:
+    return {
+        "vendor": SNOW_VENDOR,
+        "product": SNOW_PRODUCT,
+        "vendor_product": SNOW_VENDOR_PRODUCT,
+        "dvc": SNOW_INSTANCE,
+        "instance": "synthetic-demo",
+        "cim_data_model": data_model,
+        "cim_dataset": dataset,
+        "tag": tag,
+    }
+
+
+def ticket_action(state: str) -> str:
+    if state in {"New", "Scheduled"}:
+        return "created"
+    if state == "Cancelled":
+        return "updated"
+    return "updated"
+
+
+def ticket_status(state: str, approval: str = "", close_code: str = "") -> str:
+    if state == "Cancelled" or approval == "Rejected" or close_code == "Unsuccessful":
+        return "failure"
+    return "success"
+
+
+def cim_severity(priority: str) -> str:
+    if "Critical" in priority:
+        return "critical"
+    if "High" in priority:
+        return "high"
+    if "Moderate" in priority:
+        return "medium"
+    if "Low" in priority:
+        return "low"
+    return "informational"
+
+
+def identity_priority(user: dict[str, str]) -> str:
+    if user.get("vip") == "true":
+        return "critical"
+    risk_score = int(user.get("u_risk_score") or 0)
+    if risk_score >= 70:
+        return "high"
+    if risk_score >= 40:
+        return "medium"
+    return "low"
+
+
+def add_cim_fields(
+    users: list[dict[str, str]],
+    cis: list[dict[str, str]],
+    changes: list[dict[str, str]],
+    incidents: list[dict[str, str]],
+    task_ci: list[dict[str, str]],
+) -> None:
+    """Add Splunk CIM-friendly fields while preserving raw ServiceNow fields."""
+
+    for user in users:
+        priority = identity_priority(user)
+        user.update(
+            {
+                **cim_common_fields("Identity", "Identity", "identity"),
+                "identity": user["user_name"],
+                "user": user["user_name"],
+                "src_user": user["user_name"],
+                "user_id": user["employee_number"],
+                "user_email": user["email"],
+                "user_bunit": user["department"],
+                "user_category": user["title"],
+                "user_priority": priority,
+                "priority": priority,
+                "managed_by": user["manager"] or "unassigned",
+                "user_manager": user["manager"] or "unassigned",
+                "status": "success" if user["active"] == "true" else "failure",
+                "result": "active" if user["active"] == "true" else "inactive",
+            }
+        )
+
+    for ci in cis:
+        ci.update(
+            {
+                **cim_common_fields("Inventory", "All_Inventory", "inventory"),
+                "dest": ci["name"],
+                "dest_name": ci["name"],
+                "dest_host": ci["name"],
+                "dest_ip": ci["ip_address"],
+                "ip": ci["ip_address"],
+                "dns": ci["fqdn"],
+                "nt_host": ci["name"],
+                "mac": ci["mac_address"].lower(),
+                "owner": ci["owned_by"],
+                "description": f"{ci['business_service']} {ci['sys_class_name']}",
+                "vendor": ci["manufacturer"],
+                "product": ci["model_id"],
+                "vendor_product": f"{ci['manufacturer']} {ci['model_id']}",
+                "status": ci["operational_status"].lower().replace(" ", "_"),
+            }
+        )
+
+    for change in changes:
+        status = ticket_status(change["state"], change.get("approval", ""), change.get("close_code", ""))
+        change.update(
+            {
+                **cim_common_fields("Change", "All_Changes", "change"),
+                "action": ticket_action(change["state"]),
+                "change_type": "service_management",
+                "object": change["cmdb_ci"],
+                "object_id": change["sys_id"],
+                "object_category": change["category"],
+                "object_type": "change_request",
+                "object_attrs": f"business_service={change['business_service']},risk={change['risk']},type={change['type']}",
+                "result": change["state"],
+                "result_id": change["number"],
+                "status": status,
+                "user": change["requested_by"],
+                "src_user": change["opened_by"],
+                "dest": change["cmdb_ci"],
+                "dest_name": change["cmdb_ci"],
+                "severity": cim_severity(change["priority"]),
+                "ticket_id": change["number"],
+                "ticket_type": "change_request",
+                "ticket_status": change["state"],
+            }
+        )
+
+    for incident in incidents:
+        status = ticket_status(incident["state"], close_code=incident.get("close_code", ""))
+        incident.update(
+            {
+                **cim_common_fields("Change", "All_Changes", "change"),
+                "action": ticket_action(incident["state"]),
+                "change_type": "service_management",
+                "object": incident["number"],
+                "object_id": incident["sys_id"],
+                "object_category": incident["category"],
+                "object_type": "incident",
+                "object_attrs": f"business_service={incident['business_service']},priority={incident['priority']},security_incident={incident['u_security_incident']}",
+                "result": incident["state"],
+                "result_id": incident["number"],
+                "status": status,
+                "user": incident["caller_id"],
+                "src_user": incident["opened_by"],
+                "dest": incident["cmdb_ci"],
+                "dest_name": incident["cmdb_ci"],
+                "severity": cim_severity(incident["priority"]),
+                "ticket_id": incident["number"],
+                "ticket_type": "incident",
+                "ticket_status": incident["state"],
+            }
+        )
+
+    for link in task_ci:
+        link.update(
+            {
+                **cim_common_fields("Change", "All_Changes", "change"),
+                "action": "updated",
+                "change_type": "relationship",
+                "object": link["ci_item"],
+                "object_id": link["ci_sys_id"],
+                "object_category": link["relationship_type"],
+                "object_type": link["table"],
+                "result": link["relationship_type"],
+                "result_id": link["task"],
+                "status": "success",
+                "user": "servicenow",
+                "src_user": "servicenow",
+                "dest": link["ci_item"],
+                "dest_name": link["ci_item"],
+                "ticket_id": link["task"],
+                "ticket_type": link["table"],
+                "task_table": link["table"],
+            }
+        )
+
 def write_manifest(dataset_counts: dict[str, int]) -> None:
     manifest = {
         "name": "Synthetic ServiceNow data for Splunk Enterprise Security demos",
         "generated_at": json_time(BASE_TIME),
         "seed": SEED,
         "tables": dataset_counts,
-        "service_now_instance": "synthetic-demo",
+        "service_now_instance": SNOW_INSTANCE,
         "privacy_note": "All names, emails, systems, IP addresses, and records are synthetic demo data.",
+        "cim_note": "Rows include raw ServiceNow fields plus Splunk CIM-friendly fields. Splunk eventtype/tag configuration is provided under splunk_app/TA-synthetic-servicenow/default.",
         "suggested_sourcetypes": {
             "incidents": "snow:incident",
             "changes": "snow:change_request",
             "cmdb_ci": "snow:cmdb_ci",
             "users": "snow:sys_user",
             "task_ci": "snow:task_ci",
+        },
+        "cim_mappings": {
+            "incidents": "Change.All_Changes",
+            "changes": "Change.All_Changes",
+            "task_ci": "Change.All_Changes",
+            "cmdb_ci": "Inventory.All_Inventory",
+            "users": "Enterprise Security identity lookup-friendly fields",
         },
     }
     (DATASET_ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -846,6 +1035,8 @@ def main() -> None:
     changes = make_changes(rng, users, cis)
     incidents = make_incidents(rng, users, cis, changes)
     task_ci = make_task_ci_links(rng, incidents, changes, cis)
+
+    add_cim_fields(users, cis, changes, incidents, task_ci)
 
     datasets = {
         "users": users,
