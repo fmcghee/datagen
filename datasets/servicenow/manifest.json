@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-05-27T18:00:00Z",
+  "name": "Synthetic ServiceNow data for Splunk Enterprise Security demos",
+  "privacy_note": "All names, emails, systems, IP addresses, and records are synthetic demo data.",
+  "seed": 8675309,
+  "service_now_instance": "synthetic-demo",
+  "suggested_sourcetypes": {
+    "changes": "snow:change_request",
+    "cmdb_ci": "snow:cmdb_ci",
+    "incidents": "snow:incident",
+    "task_ci": "snow:task_ci",
+    "users": "snow:sys_user"
+  },
+  "tables": {
+    "changes": 45,
+    "cmdb_ci": 55,
+    "incidents": 150,
+    "task_ci": 235,
+    "users": 65
+  }
+}
