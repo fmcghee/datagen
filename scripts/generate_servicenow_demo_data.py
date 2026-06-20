@@ -8,6 +8,7 @@ and task-to-CI relationships.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import random
@@ -21,9 +22,11 @@ ROOT = Path(__file__).resolve().parents[1]
 DATASET_ROOT = ROOT / "datasets" / "servicenow"
 CSV_ROOT = DATASET_ROOT / "csv"
 JSONL_ROOT = DATASET_ROOT / "jsonl"
+OUTPUT_ROOT = ROOT / "output"
 
 SEED = 8675309
-BASE_TIME = datetime(2026, 5, 27, 18, 0, 0, tzinfo=timezone.utc)
+DEFAULT_BASE_TIME = datetime(2026, 5, 27, 18, 0, 0, tzinfo=timezone.utc)
+BASE_TIME = DEFAULT_BASE_TIME
 SNOW_INSTANCE = "synthetic-servicenow"
 SNOW_VENDOR = "ServiceNow"
 SNOW_PRODUCT = "IT Service Management"
@@ -191,6 +194,49 @@ def json_time(value: datetime | None) -> str:
     if value is None:
         return ""
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def current_base_time() -> datetime:
+    """Return a stable, current UTC anchor for rolling demo data."""
+    now = datetime.now(timezone.utc)
+    return now.replace(minute=0, second=0, microsecond=0)
+
+
+def parse_base_time(value: str) -> datetime:
+    timestamp = value.strip()
+    if timestamp.lower() in {"now", "current", "rolling"}:
+        return current_base_time()
+
+    if timestamp.endswith("Z"):
+        timestamp = f"{timestamp[:-1]}+00:00"
+
+    parsed = datetime.fromisoformat(timestamp)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate synthetic ServiceNow demo data.")
+    parser.add_argument(
+        "--base-time",
+        default="now",
+        help=(
+            "UTC anchor for generated timestamps. Use 'now' for current demo data "
+            "or an ISO timestamp such as 2026-06-20T12:00:00Z. Defaults to now."
+        ),
+    )
+    parser.add_argument(
+        "--static",
+        action="store_true",
+        help="Use the original fixed timestamp anchor for fully repeatable output.",
+    )
+    parser.add_argument(
+        "--skip-output",
+        action="store_true",
+        help="Do not write HEC-ready CSV aliases into output/.",
+    )
+    return parser.parse_args()
 
 
 def random_time(rng: random.Random, min_days_ago: int, max_days_ago: int) -> datetime:
@@ -1001,10 +1047,12 @@ def add_cim_fields(
             }
         )
 
-def write_manifest(dataset_counts: dict[str, int]) -> None:
+def write_manifest(dataset_counts: dict[str, int], base_time: datetime) -> None:
     manifest = {
         "name": "Synthetic ServiceNow data for Splunk Enterprise Security demos",
-        "generated_at": json_time(BASE_TIME),
+        "generated_at": json_time(base_time),
+        "base_time": json_time(base_time),
+        "date_mode": "rolling" if base_time != DEFAULT_BASE_TIME else "static",
         "seed": SEED,
         "tables": dataset_counts,
         "service_now_instance": SNOW_INSTANCE,
@@ -1028,7 +1076,24 @@ def write_manifest(dataset_counts: dict[str, int]) -> None:
     (DATASET_ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def write_hec_output_aliases(datasets: dict[str, list[dict[str, str]]], fieldnames: dict[str, list[str]]) -> None:
+    """Write CSV filenames expected by send_csv_to_splunk.py."""
+    aliases = {
+        "incidents": "servicenow_incidents.csv",
+        "cmdb_ci": "servicenow_cmdb.csv",
+        "changes": "servicenow_changes.csv",
+        "users": "servicenow_users.csv",
+    }
+    for dataset_name, filename in aliases.items():
+        write_csv(OUTPUT_ROOT / filename, datasets[dataset_name], fieldnames[dataset_name])
+
+
 def main() -> None:
+    global BASE_TIME
+
+    args = parse_args()
+    BASE_TIME = DEFAULT_BASE_TIME if args.static else parse_base_time(args.base_time)
+
     rng = random.Random(SEED)
     users = make_users(rng)
     cis = make_cmdb(rng, users)
@@ -1059,7 +1124,10 @@ def main() -> None:
     write_jsonl(JSONL_ROOT / "servicenow_incidents.jsonl", incidents, "incident", "servicenow://incident")
     write_jsonl(JSONL_ROOT / "servicenow_task_ci.jsonl", task_ci, "task_ci", "servicenow://task_ci")
 
-    write_manifest({name: len(rows) for name, rows in datasets.items()})
+    if not args.skip_output:
+        write_hec_output_aliases(datasets, fieldnames)
+
+    write_manifest({name: len(rows) for name, rows in datasets.items()}, BASE_TIME)
 
 
 if __name__ == "__main__":

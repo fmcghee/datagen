@@ -15,6 +15,32 @@ send each row to Splunk HTTP Event Collector (HEC) as a JSON event. CSV columns
 are preserved inside the JSON event payload so Splunk can extract them as event
 fields.
 
+### Refresh current-dated demo data
+
+Regenerate the ServiceNow demo data before a customer demo so timestamps roll
+forward with the current UTC calendar:
+
+```bash
+python3 scripts/generate_servicenow_demo_data.py --base-time now
+python3 scripts/validate_servicenow_cim.py
+```
+
+This writes the canonical ServiceNow dataset under `datasets/servicenow/` and
+HEC-ready CSV aliases under `output/`:
+
+```text
+output/servicenow_incidents.csv
+output/servicenow_cmdb.csv
+output/servicenow_changes.csv
+output/servicenow_users.csv
+```
+
+For a fully repeatable static dataset, use:
+
+```bash
+python3 scripts/generate_servicenow_demo_data.py --static
+```
+
 ### Supported CSV files
 
 | CSV file in `output/` | Splunk index | Splunk sourcetype |
@@ -61,6 +87,11 @@ without sending data:
 ```bash
 python3 send_csv_to_splunk.py --dry-run
 ```
+
+If only the ServiceNow demo files are present in `output/`, the dry-run prints
+warnings for missing security telemetry CSVs. That is expected unless you have
+also generated `auth.csv`, `endpoint.csv`, `dns.csv`, `network.csv`, and
+`web.csv`.
 
 Send all supported CSV files that exist in `output/`:
 
