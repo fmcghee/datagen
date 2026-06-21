@@ -20,17 +20,10 @@
           .deloitte-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; }
           .deloitte-hero h1 { margin: 0; font-size: 34px; color: #FFFFFF; }
           .deloitte-hero p { margin: 8px 0 0 0; color: #FFFFFF; font-size: 15px; }
-          .palette-note { color: #53565A; padding: 10px 2px 0 2px; }
-          .accent-green { color: #86BC25; font-weight: 700; }
-          .accent-blue { color: #0076A8; font-weight: 700; }
-          .accent-teal { color: #00ABAB; font-weight: 700; }
         </style>
         <div class="deloitte-hero">
           <h1>SOC Case Management</h1>
-          <p>Daily ServiceNow queue for Splunk Enterprise Security demos</p>
-        </div>
-        <div class="palette-note">
-          Palette: <span class="accent-green">Deloitte Green #86BC25</span> | Cool Gray #53565A | Black #000000 | White #FFFFFF | <span class="accent-blue">Blue #0076A8</span> | <span class="accent-teal">Teal #00ABAB</span>
+          <p>Monitor open cases, Splunk ES notable-linked incidents, workflow state, and impacted business services.</p>
         </div>
       </html>
     </panel>
@@ -108,7 +101,7 @@
           <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
 | search state!="Closed"
 | eval age_hours=round((now()-_time)/3600,1)
-| table _time number state priority severity assignment_group assigned_to cmdb_ci business_service short_description age_hours u_splunk_notable_event_id
+| table _time number priority state assigned_to cmdb_ci business_service age_hours short_description
 | sort priority - _time]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>

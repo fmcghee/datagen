@@ -38,3 +38,32 @@ Both dashboards expect the ServiceNow demo events in:
 index=demo_servicenow sourcetype=demo:snow:incident
 ```
 
+## Adjusting panel fit
+
+If a Dashboard Studio panel clips titles, table columns, or descriptions, edit
+the JSON `layout.structure[].position` values for that panel:
+
+- `w` controls width
+- `h` controls height
+- `x` controls horizontal position
+- `y` controls vertical position
+
+For example, increase the open queue panel height:
+
+```json
+{
+  "item": "viz_open_queue",
+  "type": "block",
+  "position": {
+    "x": 30,
+    "y": 375,
+    "w": 1370,
+    "h": 420
+  }
+}
+```
+
+The top header intentionally avoids showing raw color-code text in the dashboard.
+The Deloitte palette remains applied in the JSON through the visualization
+background and chart color options.
+

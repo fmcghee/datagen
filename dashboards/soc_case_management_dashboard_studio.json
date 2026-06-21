@@ -55,7 +55,7 @@
     "ds_open_queue": {
       "type": "ds.search",
       "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| search state!=\"Closed\"\n| eval age_hours=round((now()-_time)/3600,1)\n| table _time number state priority severity assignment_group assigned_to cmdb_ci business_service short_description age_hours u_splunk_notable_event_id\n| sort priority - _time",
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| search state!=\"Closed\"\n| eval age_hours=round((now()-_time)/3600,1)\n| table _time number priority state assigned_to cmdb_ci business_service age_hours short_description\n| sort priority - _time",
         "queryParameters": {
           "earliest": "$global_time.earliest$",
           "latest": "$global_time.latest$"
@@ -107,7 +107,7 @@
     "viz_background": {
       "type": "splunk.markdown",
       "options": {
-        "markdown": "# SOC Case Management\\nDaily ServiceNow queue for Splunk Enterprise Security demos\\n\\n**Deloitte palette:** Green `#86BC25`, Gray `#53565A`, Blue `#0076A8`, Teal `#00ABAB`",
+        "markdown": "# SOC Case Management\nDaily ServiceNow queue for Splunk Enterprise Security demos\n\nMonitor open cases, Splunk ES notable-linked incidents, workflow state, and impacted business services.",
         "fontColor": "#FFFFFF",
         "backgroundColor": "#000000"
       }
@@ -243,7 +243,7 @@
     "type": "absolute",
     "options": {
       "width": 1440,
-      "height": 1600,
+      "height": 1840,
       "backgroundColor": "#FFFFFF"
     },
     "structure": [
@@ -254,7 +254,7 @@
           "x": 0,
           "y": 0,
           "w": 1440,
-          "h": 150
+          "h": 135
         }
       },
       {
@@ -262,7 +262,7 @@
         "type": "block",
         "position": {
           "x": 0,
-          "y": 150,
+          "y": 135,
           "w": 1440,
           "h": 14
         }
@@ -272,9 +272,9 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 190,
+          "y": 180,
           "w": 320,
-          "h": 140
+          "h": 165
         }
       },
       {
@@ -282,9 +282,9 @@
         "type": "block",
         "position": {
           "x": 380,
-          "y": 190,
+          "y": 180,
           "w": 320,
-          "h": 140
+          "h": 165
         }
       },
       {
@@ -292,9 +292,9 @@
         "type": "block",
         "position": {
           "x": 730,
-          "y": 190,
+          "y": 180,
           "w": 320,
-          "h": 140
+          "h": 165
         }
       },
       {
@@ -302,9 +302,9 @@
         "type": "block",
         "position": {
           "x": 1080,
-          "y": 190,
+          "y": 180,
           "w": 320,
-          "h": 140
+          "h": 165
         }
       },
       {
@@ -312,9 +312,9 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 360,
+          "y": 375,
           "w": 1370,
-          "h": 360
+          "h": 420
         }
       },
       {
@@ -322,9 +322,9 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 750,
+          "y": 830,
           "w": 660,
-          "h": 320
+          "h": 360
         }
       },
       {
@@ -332,9 +332,9 @@
         "type": "block",
         "position": {
           "x": 730,
-          "y": 750,
+          "y": 830,
           "w": 670,
-          "h": 320
+          "h": 360
         }
       },
       {
@@ -342,9 +342,9 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 1100,
+          "y": 1225,
           "w": 1370,
-          "h": 250
+          "h": 300
         }
       },
       {
@@ -352,9 +352,9 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 1380,
+          "y": 1560,
           "w": 1370,
-          "h": 190
+          "h": 250
         }
       }
     ],
