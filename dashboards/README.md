@@ -67,3 +67,26 @@ The top header intentionally avoids showing raw color-code text in the dashboard
 The Deloitte palette remains applied in the JSON through the visualization
 background and chart color options.
 
+## KPI labels
+
+The four KPI numbers near the top of the Dashboard Studio version are:
+
+1. **Open Cases** - incidents where `state!="Closed"`
+2. **ES Notable-Linked Cases** - incidents with `u_splunk_notable_event_id=*`
+3. **High / Critical Open** - open incidents with priority `1 - Critical` or
+   `2 - High`
+4. **Avg Open Age** - average age, in hours, for the active case queue
+
+The Dashboard Studio layout uses separate colored label bars above the KPI
+values so the labels stay visible even when Splunk renders single-value panels
+with compact title space.
+
+## Chart panel sizing
+
+The vertical daily-volume chart and horizontal workflow-state chart are stacked
+as full-width panels in the Dashboard Studio JSON. If your browser zoom or
+screen size still clips a chart, increase the relevant panel `h` value:
+
+- `viz_daily_volume`
+- `viz_workflow_state`
+

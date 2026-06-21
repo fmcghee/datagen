@@ -30,6 +30,15 @@
   </row>
   <row>
     <panel>
+      <html>
+        <div style="background:#86BC25;color:#FFFFFF;padding:10px 14px;font-weight:700;">
+          KPI labels: Open Cases | ES Notable-Linked Cases | High / Critical Open | Avg Open Age Hours
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
       <single>
         <title>Open Cases</title>
         <search>
@@ -115,7 +124,7 @@
   <row>
     <panel>
       <chart>
-        <title>Daily Case Volume by Priority</title>
+        <title>Daily Case Volume by Priority - Last 7 Days</title>
         <search>
           <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d
 | timechart span=1d count by priority]]></query>
@@ -127,6 +136,8 @@
         <option name="charting.fieldColors">{"1 - Critical":0x000000,"2 - High":0x86BC25,"3 - Moderate":0x0076A8,"4 - Low":0x00ABAB,"5 - Planning":0x53565A}</option>
       </chart>
     </panel>
+  </row>
+  <row>
     <panel>
       <chart>
         <title>Cases by Workflow State and Priority</title>
