@@ -1,0 +1,185 @@
+<form version="1.1" theme="light">
+  <label>SOC Case Management - ServiceNow Demo</label>
+  <description>Daily SOC case-management queue using synthetic ServiceNow incidents for Splunk Enterprise Security demos.</description>
+  <fieldset submitButton="false">
+    <input type="time" token="time_range" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-7d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .dashboard-body { background-color: #FFFFFF !important; color: #53565A !important; }
+          .dashboard-panel { border: 1px solid #000000; box-shadow: 0 2px 8px rgba(83,86,90,0.15); }
+          .panel-title { color: #000000 !important; font-weight: 700 !important; }
+          .deloitte-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; }
+          .deloitte-hero h1 { margin: 0; font-size: 34px; color: #FFFFFF; }
+          .deloitte-hero p { margin: 8px 0 0 0; color: #FFFFFF; font-size: 15px; }
+          .palette-note { color: #53565A; padding: 10px 2px 0 2px; }
+          .accent-green { color: #86BC25; font-weight: 700; }
+          .accent-blue { color: #0076A8; font-weight: 700; }
+          .accent-teal { color: #00ABAB; font-weight: 700; }
+        </style>
+        <div class="deloitte-hero">
+          <h1>SOC Case Management</h1>
+          <p>Daily ServiceNow queue for Splunk Enterprise Security demos</p>
+        </div>
+        <div class="palette-note">
+          Palette: <span class="accent-green">Deloitte Green #86BC25</span> | Cool Gray #53565A | Black #000000 | White #FFFFFF | <span class="accent-blue">Blue #0076A8</span> | <span class="accent-teal">Teal #00ABAB</span>
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <single>
+        <title>Open Cases</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident state!="Closed"
+| stats count as value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="underLabel">Active SOC queue</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x86BC25","0x0076A8","0x000000"]</option>
+        <option name="rangeValues">[10,30]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>ES Notable-Linked Cases</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
+| stats count as value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="underLabel">Cases sourced from Splunk ES detections</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x0076A8","0x00ABAB","0x86BC25"]</option>
+        <option name="rangeValues">[5,15]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>High / Critical Open</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident priority IN ("1 - Critical","2 - High") state!="Closed"
+| stats count as value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="underLabel">Priority-driven triage workload</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x86BC25","0x0076A8","0x000000"]</option>
+        <option name="rangeValues">[3,10]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Avg Open Age Hours</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident state!="Closed"
+| eval age_hours=(now()-_time)/3600
+| stats avg(age_hours) as value
+| eval value=round(value,1)]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="unit">hrs</option>
+        <option name="underLabel">Mean age of active queue</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x86BC25","0x00ABAB","0x53565A"]</option>
+        <option name="rangeValues">[24,72]</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Open SOC Queue</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
+| search state!="Closed"
+| eval age_hours=round((now()-_time)/3600,1)
+| table _time number state priority severity assignment_group assigned_to cmdb_ci business_service short_description age_hours u_splunk_notable_event_id
+| sort priority - _time]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">12</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Daily Case Volume by Priority</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d
+| timechart span=1d count by priority]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.fieldColors">{"1 - Critical":0x000000,"2 - High":0x86BC25,"3 - Moderate":0x0076A8,"4 - Low":0x00ABAB,"5 - Planning":0x53565A}</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Cases by Workflow State and Priority</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
+| stats count by state priority
+| sort state priority]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.seriesColors">[0x0076A8,0x00ABAB,0x86BC25,0x53565A,0x000000]</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Splunk ES Notable-Linked ServiceNow Cases</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
+| table _time number priority state cmdb_ci business_service u_splunk_notable_event_id u_splunk_correlation_search u_mitre_tactic u_mitre_technique
+| sort - _time]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">row</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Assets and Business Services with Case Activity</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
+| stats count values(priority) as priorities values(state) as states by cmdb_ci business_service
+| sort - count]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">row</option>
+      </table>
+    </panel>
+  </row>
+</form>

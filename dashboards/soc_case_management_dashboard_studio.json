@@ -1,0 +1,379 @@
+{
+  "title": "SOC Case Management - ServiceNow Demo",
+  "description": "Daily SOC case-management dashboard for synthetic ServiceNow incidents ingested into Splunk ES demo indexes.",
+  "inputs": {
+    "input_global_time": {
+      "type": "input.timerange",
+      "title": "Time Range",
+      "options": {
+        "defaultValue": "-7d@d,now",
+        "token": "global_time"
+      }
+    }
+  },
+  "dataSources": {
+    "ds_kpi_open_cases": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident state!=\"Closed\"\n| stats count as value",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_kpi_notables": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*\n| stats count as value",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_kpi_critical": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident priority IN (\"1 - Critical\",\"2 - High\") state!=\"Closed\"\n| stats count as value",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_kpi_avg_age": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident state!=\"Closed\"\n| eval age_hours=(now()-_time)/3600\n| stats avg(age_hours) as value\n| eval value=round(value,1)",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_open_queue": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| search state!=\"Closed\"\n| eval age_hours=round((now()-_time)/3600,1)\n| table _time number state priority severity assignment_group assigned_to cmdb_ci business_service short_description age_hours u_splunk_notable_event_id\n| sort priority - _time",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_daily_volume": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d\n| timechart span=1d count by priority",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_workflow_state": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| stats count by state priority\n| sort state priority",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_notable_cases": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*\n| table _time number priority state cmdb_ci business_service u_splunk_notable_event_id u_splunk_correlation_search u_mitre_tactic u_mitre_technique\n| sort - _time",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    },
+    "ds_high_risk_assets": {
+      "type": "ds.search",
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| stats count values(priority) as priorities values(state) as states by cmdb_ci business_service\n| sort - count",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      }
+    }
+  },
+  "visualizations": {
+    "viz_background": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "# SOC Case Management\\nDaily ServiceNow queue for Splunk Enterprise Security demos\\n\\n**Deloitte palette:** Green `#86BC25`, Gray `#53565A`, Blue `#0076A8`, Teal `#00ABAB`",
+        "fontColor": "#FFFFFF",
+        "backgroundColor": "#000000"
+      }
+    },
+    "viz_accent_bar": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": " ",
+        "backgroundColor": "#86BC25"
+      }
+    },
+    "viz_open_cases": {
+      "type": "splunk.singlevalue",
+      "dataSources": {
+        "primary": "ds_kpi_open_cases"
+      },
+      "title": "Open Cases",
+      "options": {
+        "majorColor": "#000000",
+        "backgroundColor": "#FFFFFF",
+        "trendColor": "#86BC25"
+      }
+    },
+    "viz_notables": {
+      "type": "splunk.singlevalue",
+      "dataSources": {
+        "primary": "ds_kpi_notables"
+      },
+      "title": "ES Notable-Linked Cases",
+      "options": {
+        "majorColor": "#0076A8",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "viz_critical": {
+      "type": "splunk.singlevalue",
+      "dataSources": {
+        "primary": "ds_kpi_critical"
+      },
+      "title": "High / Critical Open",
+      "options": {
+        "majorColor": "#86BC25",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "viz_avg_age": {
+      "type": "splunk.singlevalue",
+      "dataSources": {
+        "primary": "ds_kpi_avg_age"
+      },
+      "title": "Avg Open Age Hours",
+      "options": {
+        "majorColor": "#53565A",
+        "backgroundColor": "#FFFFFF",
+        "unit": "hrs"
+      }
+    },
+    "viz_open_queue": {
+      "type": "splunk.table",
+      "dataSources": {
+        "primary": "ds_open_queue"
+      },
+      "title": "Open SOC Queue",
+      "options": {
+        "headerBackgroundColor": "#000000",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF",
+        "fontColor": "#53565A"
+      }
+    },
+    "viz_daily_volume": {
+      "type": "splunk.column",
+      "dataSources": {
+        "primary": "ds_daily_volume"
+      },
+      "title": "Daily Case Volume by Priority",
+      "options": {
+        "backgroundColor": "#FFFFFF",
+        "seriesColors": [
+          "#86BC25",
+          "#0076A8",
+          "#00ABAB",
+          "#53565A",
+          "#000000"
+        ],
+        "legendDisplay": "right"
+      }
+    },
+    "viz_workflow_state": {
+      "type": "splunk.bar",
+      "dataSources": {
+        "primary": "ds_workflow_state"
+      },
+      "title": "Cases by Workflow State and Priority",
+      "options": {
+        "backgroundColor": "#FFFFFF",
+        "seriesColors": [
+          "#0076A8",
+          "#00ABAB",
+          "#86BC25",
+          "#53565A"
+        ]
+      }
+    },
+    "viz_notable_cases": {
+      "type": "splunk.table",
+      "dataSources": {
+        "primary": "ds_notable_cases"
+      },
+      "title": "Splunk ES Notable-Linked ServiceNow Cases",
+      "options": {
+        "headerBackgroundColor": "#0076A8",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF",
+        "fontColor": "#53565A"
+      }
+    },
+    "viz_high_risk_assets": {
+      "type": "splunk.table",
+      "dataSources": {
+        "primary": "ds_high_risk_assets"
+      },
+      "title": "Assets and Business Services with Case Activity",
+      "options": {
+        "headerBackgroundColor": "#00ABAB",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF",
+        "fontColor": "#53565A"
+      }
+    }
+  },
+  "layout": {
+    "type": "absolute",
+    "options": {
+      "width": 1440,
+      "height": 1600,
+      "backgroundColor": "#FFFFFF"
+    },
+    "structure": [
+      {
+        "item": "viz_background",
+        "type": "block",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 150
+        }
+      },
+      {
+        "item": "viz_accent_bar",
+        "type": "block",
+        "position": {
+          "x": 0,
+          "y": 150,
+          "w": 1440,
+          "h": 14
+        }
+      },
+      {
+        "item": "viz_open_cases",
+        "type": "block",
+        "position": {
+          "x": 30,
+          "y": 190,
+          "w": 320,
+          "h": 140
+        }
+      },
+      {
+        "item": "viz_notables",
+        "type": "block",
+        "position": {
+          "x": 380,
+          "y": 190,
+          "w": 320,
+          "h": 140
+        }
+      },
+      {
+        "item": "viz_critical",
+        "type": "block",
+        "position": {
+          "x": 730,
+          "y": 190,
+          "w": 320,
+          "h": 140
+        }
+      },
+      {
+        "item": "viz_avg_age",
+        "type": "block",
+        "position": {
+          "x": 1080,
+          "y": 190,
+          "w": 320,
+          "h": 140
+        }
+      },
+      {
+        "item": "viz_open_queue",
+        "type": "block",
+        "position": {
+          "x": 30,
+          "y": 360,
+          "w": 1370,
+          "h": 360
+        }
+      },
+      {
+        "item": "viz_daily_volume",
+        "type": "block",
+        "position": {
+          "x": 30,
+          "y": 750,
+          "w": 660,
+          "h": 320
+        }
+      },
+      {
+        "item": "viz_workflow_state",
+        "type": "block",
+        "position": {
+          "x": 730,
+          "y": 750,
+          "w": 670,
+          "h": 320
+        }
+      },
+      {
+        "item": "viz_notable_cases",
+        "type": "block",
+        "position": {
+          "x": 30,
+          "y": 1100,
+          "w": 1370,
+          "h": 250
+        }
+      },
+      {
+        "item": "viz_high_risk_assets",
+        "type": "block",
+        "position": {
+          "x": 30,
+          "y": 1380,
+          "w": 1370,
+          "h": 190
+        }
+      }
+    ]
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$global_time.earliest$",
+            "latest": "$global_time.latest$"
+          }
+        }
+      }
+    },
+    "visualizations": {
+      "global": {
+        "showProgressBar": true
+      }
+    }
+  }
+}
