@@ -1,0 +1,93 @@
+<dashboard version="1.1" theme="light">
+  <label>Demo Setup</label>
+  <description>Install, load, and validate the ServiceNow ES demo app on any Splunk instance.</description>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .setup-body { font-family: Arial, sans-serif; color: #53565A; line-height: 1.5; }
+          .setup-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; }
+          .setup-hero h1 { margin: 0; font-size: 30px; color: #FFFFFF; }
+          .setup-section { margin: 18px 0; padding: 16px 18px; border: 1px solid #000000; background: #FFFFFF; }
+          .setup-section h2 { margin-top: 0; color: #000000; font-size: 18px; }
+          .setup-section ol, .setup-section ul { margin: 8px 0 0 20px; }
+          .setup-code { background: #F4F4F4; padding: 10px 12px; font-family: monospace; white-space: pre-wrap; }
+          .setup-note { background: #86BC25; color: #FFFFFF; padding: 10px 12px; font-weight: 700; }
+        </style>
+        <div class="setup-body">
+          <div class="setup-hero">
+            <h1>ServiceNow ES Demo Setup</h1>
+            <p>Portable synthetic ServiceNow, Mission Control source data, and SOC dashboards.</p>
+          </div>
+          <div class="setup-section">
+            <h2>1. Install the app</h2>
+            <ol>
+              <li>Copy the <code>demo_servicenow_es</code> folder to <code>$SPLUNK_HOME/etc/apps/</code> on your search head, or install the packaged <code>.tar.gz</code> from the repository <code>dist/</code> directory.</li>
+              <li>Restart Splunk or reload the app from Manage Apps.</li>
+            </ol>
+          </div>
+          <div class="setup-section">
+            <h2>2. Create indexes</h2>
+            <p>Create these indexes before loading demo data:</p>
+            <ul>
+              <li><code>demo_servicenow</code></li>
+              <li><code>demo_security</code></li>
+            </ul>
+            <p>Use <code>default/indexes.conf.example</code> as a reference on Splunk Enterprise. On Splunk Cloud, create the indexes in the admin console.</p>
+          </div>
+          <div class="setup-section">
+            <h2>3. Load bundled demo data</h2>
+            <div class="setup-note">Enable each scripted input once, wait for it to run, then disable it again to avoid duplicate events.</div>
+            <ol>
+              <li>Open <strong>Settings &gt; Data inputs &gt; Files &amp; directories &gt; Scripts</strong>.</li>
+              <li>Filter for <code>demo_servicenow_es</code>.</li>
+              <li>Enable these inputs one at a time:
+                <ul>
+                  <li><code>index_demo_csv.py servicenow_incidents.csv</code></li>
+                  <li><code>index_demo_csv.py servicenow_changes.csv</code></li>
+                  <li><code>index_demo_csv.py servicenow_cmdb.csv</code></li>
+                  <li><code>index_demo_csv.py servicenow_users.csv</code></li>
+                  <li><code>index_demo_csv.py servicenow_task_ci.csv</code></li>
+                  <li><code>index_demo_csv.py es_incidents.csv</code></li>
+                </ul>
+              </li>
+              <li>After each input runs successfully, disable it again.</li>
+            </ol>
+            <p>To reload demo data later, delete marker files under <code>local/loaded_*.marker</code> in this app or run the script with <code>--force</code> from the CLI.</p>
+          </div>
+          <div class="setup-section">
+            <h2>4. Validate indexed data</h2>
+            <p>Open the <strong>Demo Searches</strong> menu and run:</p>
+            <ul>
+              <li><code>demo_validate_servicenow_incidents</code></li>
+              <li><code>demo_validate_es_incident_source</code></li>
+            </ul>
+          </div>
+          <div class="setup-section">
+            <h2>5. ES 8.5 Mission Control findings</h2>
+            <ol>
+              <li>Copy the saved searches <code>demo_es85_detection_soc1_template</code> and <code>demo_es85_detection_soc2_template</code> into <strong>Security content &gt; Event-based detections</strong>.</li>
+              <li>In each detection, set <strong>Output &gt; Create findings</strong> with tokens such as <code>$name$</code>, <code>$description$</code>, and <code>$risk_object$</code>.</li>
+              <li>Enable the detections. You do <strong>not</strong> need a Mission Control Incidents adaptive response action in ES 8.5.</li>
+              <li>In Mission Control, save analyst queue views:
+                <div class="setup-code">"soc_queue=\"SOC 1 Queue\""
+"soc_queue=\"SOC 2 Queue\""</div>
+              </li>
+            </ol>
+          </div>
+          <div class="setup-section">
+            <h2>6. Open the SOC dashboard</h2>
+            <p>After data is loaded, open <strong>SOC Case Management</strong> from this app navigation menu.</p>
+          </div>
+          <div class="setup-section">
+            <h2>Refresh dates before a live demo</h2>
+            <p>From the repository root on a machine with Python 3:</p>
+            <div class="setup-code">python3 scripts/build_splunk_demo_app.py
+python3 scripts/build_splunk_demo_app.py --package</div>
+            <p>Reinstall or copy the refreshed app to your Splunk search head, then reload the scripted inputs with <code>--force</code>.</p>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+</dashboard>

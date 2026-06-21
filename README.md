@@ -2,6 +2,25 @@
 
 Synthetic demo data generators and ready-to-use datasets.
 
+## Portable Splunk app (recommended for demos)
+
+Install everything as a single Splunk app you can copy to any search head:
+
+```bash
+python3 scripts/build_splunk_demo_app.py --package
+```
+
+This refreshes bundled CSV data and creates:
+
+- App folder: `splunk_app/demo_servicenow_es/`
+- Install package: `dist/demo_servicenow_es.tar.gz`
+
+Copy the app folder or extract the tarball to `$SPLUNK_HOME/etc/apps/`,
+restart Splunk, then open **ServiceNow ES Demo** and follow the **Demo Setup**
+dashboard.
+
+See [`splunk_app/demo_servicenow_es/README.md`](splunk_app/demo_servicenow_es/README.md).
+
 ## Available datasets
 
 - [`datasets/servicenow`](datasets/servicenow/README.md) - realistic synthetic

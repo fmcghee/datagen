@@ -1,0 +1,205 @@
+<form version="1.1" theme="light">
+  <label>SOC Case Management - ServiceNow Demo</label>
+  <description>Daily SOC case-management queue using synthetic ServiceNow incidents for Splunk Enterprise Security demos.</description>
+  <fieldset submitButton="false">
+    <input type="time" token="time_range" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-7d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .dashboard-body { background-color: #FFFFFF !important; color: #53565A !important; }
+          .dashboard-panel { border: 1px solid #000000; box-shadow: 0 2px 8px rgba(83,86,90,0.15); }
+          .panel-title { color: #000000 !important; font-weight: 700 !important; }
+          .deloitte-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; }
+          .deloitte-hero h1 { margin: 0; font-size: 34px; color: #FFFFFF; }
+          .deloitte-hero p { margin: 8px 0 0 0; color: #FFFFFF; font-size: 15px; }
+        </style>
+        <div class="deloitte-hero">
+          <h1>SOC Case Management</h1>
+          <p>Monitor open cases, Splunk ES notable-linked incidents, workflow state, and impacted business services.</p>
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>
+        <div style="background:#86BC25;color:#FFFFFF;padding:10px 14px;font-weight:700;">
+          KPI labels: Open Cases | ES Notable-Linked Cases | High / Critical Open | Avg Open Age Hours
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <single>
+        <title>Open Cases</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident state!="Closed"
+| stats count as value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="underLabel">Active SOC queue</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x86BC25","0x0076A8","0x000000"]</option>
+        <option name="rangeValues">[10,30]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>ES Notable-Linked Cases</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
+| stats count as value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="underLabel">Cases sourced from Splunk ES detections</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x0076A8","0x00ABAB","0x86BC25"]</option>
+        <option name="rangeValues">[5,15]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>High / Critical Open</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident priority IN ("1 - Critical","2 - High") state!="Closed"
+| stats count as value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="underLabel">Priority-driven triage workload</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x86BC25","0x0076A8","0x000000"]</option>
+        <option name="rangeValues">[3,10]</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Avg Open Age Hours</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident state!="Closed"
+| eval age_hours=(now()-_time)/3600
+| stats avg(age_hours) as value
+| eval value=round(value,1)]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="unit">hrs</option>
+        <option name="underLabel">Mean age of active queue</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x86BC25","0x00ABAB","0x53565A"]</option>
+        <option name="rangeValues">[24,72]</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Open SOC Queue</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
+| search state!="Closed"
+| eval age_hours=round((now()-_time)/3600,1)
+| table _time number priority state assigned_to cmdb_ci business_service age_hours short_description
+| sort priority - _time]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">12</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Daily Case Trend - Last 7 Days</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d@d
+| bin _time span=1d
+| stats count as Cases by _time
+| eval Day=strftime(_time, "%a %m/%d")
+| sort _time
+| table Day Cases]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.seriesColors">[0x0076A8]</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Case Queue by Workflow State</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
+| eval State=coalesce(state, "Unknown")
+| stats count as Cases by State
+| eval sort_order=case(State="New",1, State="In Progress",2, State="On Hold",3, State="Resolved",4, State="Closed",5, true(),99)
+| sort sort_order
+| fields State Cases]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.seriesColors">[0x00ABAB]</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Splunk ES Notable-Linked ServiceNow Cases</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
+| table _time number priority state cmdb_ci business_service u_splunk_notable_event_id u_splunk_correlation_search u_mitre_tactic u_mitre_technique
+| sort - _time]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Assets and Business Services with Case Activity</title>
+        <search>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
+| stats count values(priority) as priorities values(state) as states by cmdb_ci business_service
+| sort - count]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20cmdb_ci%3D%22$row.cmdb_ci$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</form>

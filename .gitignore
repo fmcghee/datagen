@@ -1,2 +1,3 @@
 __pycache__/
 *.py[cod]
+splunk_app/demo_servicenow_es/local/
