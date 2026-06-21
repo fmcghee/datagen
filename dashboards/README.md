@@ -83,9 +83,15 @@ with compact title space.
 
 ## Chart panel sizing
 
-The vertical daily-volume chart and horizontal workflow-state chart are stacked
-as full-width panels in the Dashboard Studio JSON. If your browser zoom or
-screen size still clips a chart, increase the relevant panel `h` value:
+The daily-volume and workflow-state charts are intentionally simplified:
+
+- **Daily Case Trend - Last 7 Days** returns two fields: `Day` and `Cases`.
+- **Case Queue by Workflow State** returns two fields: `State` and `Cases`.
+
+This avoids crowded multi-series split-by charts and renders more reliably in
+Dashboard Studio. Both charts are stacked as full-width panels in the JSON. If
+your browser zoom or screen size still clips a chart, increase the relevant panel
+`h` value:
 
 - `viz_daily_volume`
 - `viz_workflow_state`

@@ -124,33 +124,40 @@
   <row>
     <panel>
       <chart>
-        <title>Daily Case Volume by Priority - Last 7 Days</title>
+        <title>Daily Case Trend - Last 7 Days</title>
         <search>
-          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d
-| timechart span=1d count by priority]]></query>
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d@d
+| bin _time span=1d
+| stats count as Cases by _time
+| eval Day=strftime(_time, "%a %m/%d")
+| sort _time
+| table Day Cases]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
         </search>
         <option name="charting.chart">column</option>
-        <option name="charting.legend.placement">right</option>
-        <option name="charting.fieldColors">{"1 - Critical":0x000000,"2 - High":0x86BC25,"3 - Moderate":0x0076A8,"4 - Low":0x00ABAB,"5 - Planning":0x53565A}</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.seriesColors">[0x0076A8]</option>
       </chart>
     </panel>
   </row>
   <row>
     <panel>
       <chart>
-        <title>Cases by Workflow State and Priority</title>
+        <title>Case Queue by Workflow State</title>
         <search>
           <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
-| stats count by state priority
-| sort state priority]]></query>
+| eval State=coalesce(state, "Unknown")
+| stats count as Cases by State
+| eval sort_order=case(State="New",1, State="In Progress",2, State="On Hold",3, State="Resolved",4, State="Closed",5, true(),99)
+| sort sort_order
+| fields State Cases]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
         </search>
         <option name="charting.chart">bar</option>
-        <option name="charting.legend.placement">right</option>
-        <option name="charting.seriesColors">[0x0076A8,0x00ABAB,0x86BC25,0x53565A,0x000000]</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="charting.seriesColors">[0x00ABAB]</option>
       </chart>
     </panel>
   </row>

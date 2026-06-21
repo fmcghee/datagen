@@ -65,7 +65,7 @@
     "ds_daily_volume": {
       "type": "ds.search",
       "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d\n| timechart span=1d count by priority",
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d@d\n| bin _time span=1d\n| stats count as Cases by _time\n| eval Day=strftime(_time, \"%a %m/%d\")\n| sort _time\n| table Day Cases",
         "queryParameters": {
           "earliest": "$global_time.earliest$",
           "latest": "$global_time.latest$"
@@ -75,7 +75,7 @@
     "ds_workflow_state": {
       "type": "ds.search",
       "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| stats count by state priority\n| sort state priority",
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| eval State=coalesce(state, \"Unknown\")\n| stats count as Cases by State\n| eval sort_order=case(State=\"New\",1, State=\"In Progress\",2, State=\"On Hold\",3, State=\"Resolved\",4, State=\"Closed\",5, true(),99)\n| sort sort_order\n| fields State Cases",
         "queryParameters": {
           "earliest": "$global_time.earliest$",
           "latest": "$global_time.latest$"
@@ -183,17 +183,13 @@
       "dataSources": {
         "primary": "ds_daily_volume"
       },
-      "title": "Daily Case Volume by Priority - Last 7 Days",
+      "title": "Daily Case Trend - Last 7 Days",
       "options": {
         "backgroundColor": "#FFFFFF",
         "seriesColors": [
-          "#86BC25",
-          "#0076A8",
-          "#00ABAB",
-          "#53565A",
-          "#000000"
+          "#0076A8"
         ],
-        "legendDisplay": "right"
+        "legendDisplay": "off"
       }
     },
     "viz_workflow_state": {
@@ -201,16 +197,13 @@
       "dataSources": {
         "primary": "ds_workflow_state"
       },
-      "title": "Cases by Workflow State and Priority",
+      "title": "Case Queue by Workflow State",
       "options": {
         "backgroundColor": "#FFFFFF",
         "seriesColors": [
-          "#0076A8",
-          "#00ABAB",
-          "#86BC25",
-          "#53565A"
+          "#00ABAB"
         ],
-        "legendDisplay": "right"
+        "legendDisplay": "off"
       }
     },
     "viz_notable_cases": {
@@ -276,7 +269,7 @@
     "type": "absolute",
     "options": {
       "width": 1440,
-      "height": 2260,
+      "height": 2340,
       "backgroundColor": "#FFFFFF"
     },
     "structure": [
@@ -397,7 +390,7 @@
           "x": 30,
           "y": 870,
           "w": 1370,
-          "h": 420
+          "h": 460
         }
       },
       {
@@ -405,9 +398,9 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 1325,
+          "y": 1365,
           "w": 1370,
-          "h": 420
+          "h": 460
         }
       },
       {
@@ -415,7 +408,7 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 1780,
+          "y": 1860,
           "w": 1370,
           "h": 280
         }
@@ -425,7 +418,7 @@
         "type": "block",
         "position": {
           "x": 30,
-          "y": 2095,
+          "y": 2175,
           "w": 1370,
           "h": 140
         }
