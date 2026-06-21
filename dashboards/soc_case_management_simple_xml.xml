@@ -118,6 +118,9 @@
         <option name="count">12</option>
         <option name="dataOverlayMode">none</option>
         <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
       </table>
     </panel>
   </row>
@@ -174,6 +177,9 @@
         </search>
         <option name="count">10</option>
         <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
       </table>
     </panel>
   </row>
@@ -190,6 +196,9 @@
         </search>
         <option name="count">10</option>
         <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20cmdb_ci%3D%22$row.cmdb_ci$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
       </table>
     </panel>
   </row>

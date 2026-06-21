@@ -176,7 +176,20 @@
         "headerTextColor": "#FFFFFF",
         "rowBackgroundColor": "#FFFFFF",
         "fontColor": "#53565A"
-      }
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "fields": [
+              "number"
+            ],
+            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number.value$%22&earliest=-30d&latest=now",
+            "newTab": true
+          }
+        }
+      ],
+      "description": "Click an incident number to open the full ServiceNow case search."
     },
     "viz_daily_volume": {
       "type": "splunk.column",
@@ -217,7 +230,20 @@
         "headerTextColor": "#FFFFFF",
         "rowBackgroundColor": "#FFFFFF",
         "fontColor": "#53565A"
-      }
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "fields": [
+              "number"
+            ],
+            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number.value$%22&earliest=-30d&latest=now",
+            "newTab": true
+          }
+        }
+      ],
+      "description": "Click an incident number to open the full ServiceNow case search."
     },
     "viz_high_risk_assets": {
       "type": "splunk.table",
@@ -230,7 +256,20 @@
         "headerTextColor": "#FFFFFF",
         "rowBackgroundColor": "#FFFFFF",
         "fontColor": "#53565A"
-      }
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "fields": [
+              "cmdb_ci"
+            ],
+            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20cmdb_ci%3D%22$row.cmdb_ci.value$%22&earliest=-30d&latest=now",
+            "newTab": true
+          }
+        }
+      ],
+      "description": "Click a CMDB CI to open all related cases for that asset."
     },
     "viz_open_cases_label": {
       "type": "splunk.markdown",

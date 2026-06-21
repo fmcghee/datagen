@@ -38,6 +38,20 @@ Both dashboards expect the ServiceNow demo events in:
 index=demo_servicenow sourcetype=demo:snow:incident
 ```
 
+## Drilldowns
+
+The table panels include drilldowns that open a filtered Splunk Search in a new
+tab:
+
+- **Open SOC Queue** - click the `number` field to open that specific case.
+- **Splunk ES Notable-Linked ServiceNow Cases** - click the `number` field to
+  open that specific case.
+- **Assets and Business Services with Case Activity** - click the `cmdb_ci`
+  field to open all cases for that asset.
+
+The Dashboard Studio JSON uses field-level `drilldown.customUrl` event handlers.
+The Classic XML companion uses table `<drilldown>` links.
+
 ## Adjusting panel fit
 
 If a Dashboard Studio panel clips titles, table columns, or descriptions, edit
