@@ -54,6 +54,7 @@ python3 scripts/generate_servicenow_demo_data.py --static
 | `servicenow_cmdb.csv` | `demo_servicenow` | `demo:snow:cmdb_ci` |
 | `servicenow_changes.csv` | `demo_servicenow` | `demo:snow:change` |
 | `servicenow_users.csv` | `demo_servicenow` | `demo:snow:user` |
+| `es_incidents.csv` | `demo_security` | `demo:es:incident` |
 
 The script parses the first available timestamp field from `_time`, `time`,
 `timestamp`, or `opened_at` and sends it as the Splunk HEC event `time`. The
@@ -142,4 +143,11 @@ Validate security telemetry sourcetypes:
 ```spl
 index=demo_security sourcetype IN (demo:auth, demo:endpoint, demo:dns, demo:network, demo:web)
 | stats count by sourcetype
+```
+
+Validate ES incident source rows that can feed Mission Control:
+
+```spl
+index=demo_security sourcetype=demo:es:incident
+| stats count values(snow_incident_number) as linked_servicenow_cases by soc_queue status_name urgency
 ```

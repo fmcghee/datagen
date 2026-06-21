@@ -44,6 +44,7 @@ CSV_INPUTS = (
     CsvInput("servicenow_cmdb.csv", "demo_servicenow", "demo:snow:cmdb_ci"),
     CsvInput("servicenow_changes.csv", "demo_servicenow", "demo:snow:change"),
     CsvInput("servicenow_users.csv", "demo_servicenow", "demo:snow:user"),
+    CsvInput("es_incidents.csv", "demo_security", "demo:es:incident"),
 )
 
 

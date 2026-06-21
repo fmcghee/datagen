@@ -22,6 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DATASET_ROOT = ROOT / "datasets" / "servicenow"
 CSV_ROOT = DATASET_ROOT / "csv"
 JSONL_ROOT = DATASET_ROOT / "jsonl"
+MISSION_CONTROL_ROOT = ROOT / "datasets" / "mission_control"
+MISSION_CONTROL_CSV_ROOT = MISSION_CONTROL_ROOT / "csv"
+MISSION_CONTROL_JSONL_ROOT = MISSION_CONTROL_ROOT / "jsonl"
 OUTPUT_ROOT = ROOT / "output"
 
 SEED = 8675309
@@ -261,9 +264,10 @@ def write_jsonl(path: Path, rows: list[dict[str, str]], table: str, source: str)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
+            event_time = json_time(parse_snow_time(row.get("sys_updated_on") or row.get("sys_created_on"))) or row.get("_time", "")
             event = {
                 **row,
-                "_time": json_time(parse_snow_time(row.get("sys_updated_on") or row.get("sys_created_on"))),
+                "_time": event_time,
                 "table": table,
                 "source": source,
             }
@@ -870,6 +874,114 @@ def make_task_ci_links(
     return rows
 
 
+def make_es_incidents(rng: random.Random, incidents: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Create ES notable-source rows that can become Mission Control incidents."""
+    security_incidents = [
+        incident
+        for incident in incidents
+        if incident["u_security_incident"] == "true" and incident["u_splunk_notable_event_id"]
+    ]
+    fallback_security_incidents = [
+        incident for incident in incidents if incident["u_security_incident"] == "true"
+    ]
+    source_incidents: list[dict[str, str]] = []
+    seen_incidents: set[str] = set()
+    for incident in security_incidents + fallback_security_incidents:
+        if incident["number"] in seen_incidents:
+            continue
+        source_incidents.append(incident)
+        seen_incidents.add(incident["number"])
+        if len(source_incidents) == 18:
+            break
+
+    queues = ("SOC 1 Queue", "SOC 2 Queue")
+    statuses = ("New", "In Progress", "New", "In Progress", "On Hold")
+    rows: list[dict[str, str]] = []
+
+    for index, incident in enumerate(source_incidents, start=1):
+        queue = queues[(index - 1) % len(queues)]
+        notable_id = incident["u_splunk_notable_event_id"] or f"NE-{BASE_TIME:%Y-%m-%d}-{index:04d}"
+        mc_incident_id = f"MC-{BASE_TIME:%Y%m%d}-{index:04d}"
+        finding_id = f"FINDING-{BASE_TIME:%Y%m%d}-{index:04d}"
+        created = parse_snow_time(incident["opened_at"]) or random_time(rng, 0, 7)
+        updated = parse_snow_time(incident["sys_updated_on"]) or (created + timedelta(hours=1))
+        severity = cim_severity(incident["priority"])
+        urgency = {
+            "critical": "critical",
+            "high": "high",
+            "medium": "medium",
+            "low": "low",
+        }.get(severity, "medium")
+        soc_level = "SOC 1" if queue == "SOC 1 Queue" else "SOC 2"
+        analyst = "soc1_triage" if soc_level == "SOC 1" else "soc2_investigator"
+
+        rows.append(
+            {
+                "_time": json_time(updated),
+                "time": snow_time(updated),
+                "timestamp": json_time(updated),
+                "id": mc_incident_id,
+                "incident_id": mc_incident_id,
+                "display_id": mc_incident_id,
+                "finding_id": finding_id,
+                "notable_id": notable_id,
+                "event_id": notable_id,
+                "name": f"{incident['number']} - {incident['short_description']}",
+                "title": f"{incident['number']} - {incident['short_description']}",
+                "description": (
+                    f"Splunk ES notable {notable_id} is linked to ServiceNow case "
+                    f"{incident['number']} for {incident['business_service']} on {incident['cmdb_ci']}."
+                ),
+                "summary": (
+                    f"{soc_level} triage item for {incident['number']}: "
+                    f"{incident['short_description']}"
+                ),
+                "source": incident["u_splunk_correlation_search"],
+                "source_type": "Splunk Enterprise Security notable event",
+                "incident_origin": "Splunk Enterprise Security",
+                "incident_type": "ES Notable",
+                "soc_queue": queue,
+                "queue": queue,
+                "security_domain": soc_level,
+                "status_name": statuses[(index - 1) % len(statuses)],
+                "status": statuses[(index - 1) % len(statuses)].lower().replace(" ", "_"),
+                "disposition": "Undetermined",
+                "urgency": urgency,
+                "severity": severity,
+                "sensitivity": "amber",
+                "assignee": analyst,
+                "owner": analyst,
+                "snow_incident_number": incident["number"],
+                "service_now_incident": incident["number"],
+                "external_reference": incident["number"],
+                "external_url_label": f"ServiceNow {incident['number']}",
+                "cmdb_ci": incident["cmdb_ci"],
+                "dest": incident["cmdb_ci"],
+                "risk_object": incident["u_es_risk_object"] or incident["cmdb_ci"],
+                "risk_score": incident["u_es_risk_score"] or str(rng.randint(35, 95)),
+                "business_service": incident["business_service"],
+                "priority": incident["priority"],
+                "assignment_group": incident["assignment_group"],
+                "mitre_tactic": incident["u_mitre_tactic"],
+                "mitre_technique": incident["u_mitre_technique"],
+                "correlation_search": incident["u_splunk_correlation_search"],
+                "rule_name": incident["u_splunk_correlation_search"],
+                "create_time": str(int(created.timestamp())),
+                "update_time": str(int(updated.timestamp())),
+                "mc_create_time": str(int(created.timestamp())),
+                "sla_expiry_time": str(int((created + timedelta(hours=24 if urgency in {"critical", "high"} else 72)).timestamp())),
+                "src": "",
+                "src_user": incident["src_user"],
+                "user": incident["user"],
+                "vendor": "Splunk",
+                "product": "Enterprise Security",
+                "vendor_product": "Splunk Enterprise Security",
+            }
+        )
+
+    return rows
+
+
 
 def cim_common_fields(data_model: str, dataset: str, tag: str) -> dict[str, str]:
     return {
@@ -1064,6 +1176,7 @@ def write_manifest(dataset_counts: dict[str, int], base_time: datetime) -> None:
             "cmdb_ci": "snow:cmdb_ci",
             "users": "snow:sys_user",
             "task_ci": "snow:task_ci",
+            "es_incidents": "demo:es:incident",
         },
         "cim_mappings": {
             "incidents": "Change.All_Changes",
@@ -1071,6 +1184,7 @@ def write_manifest(dataset_counts: dict[str, int], base_time: datetime) -> None:
             "task_ci": "Change.All_Changes",
             "cmdb_ci": "Inventory.All_Inventory",
             "users": "Enterprise Security identity lookup-friendly fields",
+            "es_incidents": "Mission Control/ES incident source fields",
         },
     }
     (DATASET_ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1083,6 +1197,7 @@ def write_hec_output_aliases(datasets: dict[str, list[dict[str, str]]], fieldnam
         "cmdb_ci": "servicenow_cmdb.csv",
         "changes": "servicenow_changes.csv",
         "users": "servicenow_users.csv",
+        "es_incidents": "es_incidents.csv",
     }
     for dataset_name, filename in aliases.items():
         write_csv(OUTPUT_ROOT / filename, datasets[dataset_name], fieldnames[dataset_name])
@@ -1102,6 +1217,7 @@ def main() -> None:
     task_ci = make_task_ci_links(rng, incidents, changes, cis)
 
     add_cim_fields(users, cis, changes, incidents, task_ci)
+    es_incidents = make_es_incidents(rng, incidents)
 
     datasets = {
         "users": users,
@@ -1109,6 +1225,7 @@ def main() -> None:
         "changes": changes,
         "incidents": incidents,
         "task_ci": task_ci,
+        "es_incidents": es_incidents,
     }
 
     fieldnames = {name: list(rows[0].keys()) for name, rows in datasets.items()}
@@ -1117,12 +1234,14 @@ def main() -> None:
     write_csv(CSV_ROOT / "servicenow_change_requests.csv", changes, fieldnames["changes"])
     write_csv(CSV_ROOT / "servicenow_incidents.csv", incidents, fieldnames["incidents"])
     write_csv(CSV_ROOT / "servicenow_task_ci.csv", task_ci, fieldnames["task_ci"])
+    write_csv(MISSION_CONTROL_CSV_ROOT / "es_incidents.csv", es_incidents, fieldnames["es_incidents"])
 
     write_jsonl(JSONL_ROOT / "servicenow_users.jsonl", users, "sys_user", "servicenow://sys_user")
     write_jsonl(JSONL_ROOT / "servicenow_cmdb_ci.jsonl", cis, "cmdb_ci", "servicenow://cmdb_ci")
     write_jsonl(JSONL_ROOT / "servicenow_change_requests.jsonl", changes, "change_request", "servicenow://change_request")
     write_jsonl(JSONL_ROOT / "servicenow_incidents.jsonl", incidents, "incident", "servicenow://incident")
     write_jsonl(JSONL_ROOT / "servicenow_task_ci.jsonl", task_ci, "task_ci", "servicenow://task_ci")
+    write_jsonl(MISSION_CONTROL_JSONL_ROOT / "es_incidents.jsonl", es_incidents, "es_incident", "mission_control://es_incident")
 
     if not args.skip_output:
         write_hec_output_aliases(datasets, fieldnames)

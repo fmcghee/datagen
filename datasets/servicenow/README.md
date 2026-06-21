@@ -88,6 +88,7 @@ The generator also writes HEC-ready CSV aliases to `output/` for:
 - `servicenow_cmdb.csv`
 - `servicenow_changes.csv`
 - `servicenow_users.csv`
+- `es_incidents.csv` (linked ES/Mission Control source incidents)
 
 ## Option 1: Load as Splunk lookups
 
