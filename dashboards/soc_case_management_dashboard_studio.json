@@ -1,471 +1,15 @@
 {
   "title": "SOC Case Management - ServiceNow Demo",
-  "description": "Daily SOC case-management dashboard for synthetic ServiceNow incidents ingested into Splunk ES demo indexes.",
+  "description": "Daily SOC case-management dashboard for synthetic ServiceNow incidents and Mission Control findings ingested into Splunk ES demo indexes.",
   "inputs": {
     "input_global_time": {
-      "type": "input.timerange",
-      "title": "Time Range",
       "options": {
-        "defaultValue": "-7d@d,now",
+        "defaultValue": "-30d@d,now",
         "token": "global_time"
-      }
+      },
+      "title": "Time Range",
+      "type": "input.timerange"
     }
-  },
-  "dataSources": {
-    "ds_kpi_open_cases": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident state!=\"Closed\"\n| stats count as value",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_kpi_notables": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*\n| stats count as value",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_kpi_critical": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident priority IN (\"1 - Critical\",\"2 - High\") state!=\"Closed\"\n| stats count as value",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_kpi_avg_age": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident state!=\"Closed\"\n| eval age_hours=(now()-_time)/3600\n| stats avg(age_hours) as value\n| eval value=round(value,1)",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_open_queue": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| search state!=\"Closed\"\n| eval age_hours=round((now()-_time)/3600,1)\n| table _time number priority state assigned_to cmdb_ci business_service age_hours short_description\n| sort priority - _time",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_daily_volume": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d@d\n| bin _time span=1d\n| stats count as Cases by _time\n| eval Day=strftime(_time, \"%a %m/%d\")\n| sort _time\n| table Day Cases",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_workflow_state": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| eval State=coalesce(state, \"Unknown\")\n| stats count as Cases by State\n| eval sort_order=case(State=\"New\",1, State=\"In Progress\",2, State=\"On Hold\",3, State=\"Resolved\",4, State=\"Closed\",5, true(),99)\n| sort sort_order\n| fields State Cases",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_notable_cases": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*\n| table _time number priority state cmdb_ci business_service u_splunk_notable_event_id u_splunk_correlation_search u_mitre_tactic u_mitre_technique\n| sort - _time",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    },
-    "ds_high_risk_assets": {
-      "type": "ds.search",
-      "options": {
-        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| stats count values(priority) as priorities values(state) as states by cmdb_ci business_service\n| sort - count",
-        "queryParameters": {
-          "earliest": "$global_time.earliest$",
-          "latest": "$global_time.latest$"
-        }
-      }
-    }
-  },
-  "visualizations": {
-    "viz_background": {
-      "type": "splunk.markdown",
-      "options": {
-        "markdown": "# SOC Case Management\nDaily ServiceNow queue for Splunk Enterprise Security demos\n\nMonitor open cases, Splunk ES notable-linked incidents, workflow state, and impacted business services.",
-        "fontColor": "#FFFFFF",
-        "backgroundColor": "#000000"
-      }
-    },
-    "viz_accent_bar": {
-      "type": "splunk.markdown",
-      "options": {
-        "markdown": " ",
-        "backgroundColor": "#86BC25"
-      }
-    },
-    "viz_open_cases": {
-      "type": "splunk.singlevalue",
-      "dataSources": {
-        "primary": "ds_kpi_open_cases"
-      },
-      "title": "Count",
-      "options": {
-        "majorColor": "#000000",
-        "backgroundColor": "#FFFFFF",
-        "trendColor": "#86BC25"
-      }
-    },
-    "viz_notables": {
-      "type": "splunk.singlevalue",
-      "dataSources": {
-        "primary": "ds_kpi_notables"
-      },
-      "title": "Count",
-      "options": {
-        "majorColor": "#0076A8",
-        "backgroundColor": "#FFFFFF"
-      }
-    },
-    "viz_critical": {
-      "type": "splunk.singlevalue",
-      "dataSources": {
-        "primary": "ds_kpi_critical"
-      },
-      "title": "Count",
-      "options": {
-        "majorColor": "#86BC25",
-        "backgroundColor": "#FFFFFF"
-      }
-    },
-    "viz_avg_age": {
-      "type": "splunk.singlevalue",
-      "dataSources": {
-        "primary": "ds_kpi_avg_age"
-      },
-      "title": "Hours",
-      "options": {
-        "majorColor": "#53565A",
-        "backgroundColor": "#FFFFFF",
-        "unit": "hrs"
-      }
-    },
-    "viz_open_queue": {
-      "type": "splunk.table",
-      "dataSources": {
-        "primary": "ds_open_queue"
-      },
-      "title": "Open SOC Queue",
-      "options": {
-        "headerBackgroundColor": "#000000",
-        "headerTextColor": "#FFFFFF",
-        "rowBackgroundColor": "#FFFFFF",
-        "fontColor": "#53565A"
-      },
-      "eventHandlers": [
-        {
-          "type": "drilldown.customUrl",
-          "options": {
-            "fields": [
-              "number"
-            ],
-            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number.value$%22&earliest=-30d&latest=now",
-            "newTab": true
-          }
-        }
-      ],
-      "description": "Click an incident number to open the full ServiceNow case search."
-    },
-    "viz_daily_volume": {
-      "type": "splunk.column",
-      "dataSources": {
-        "primary": "ds_daily_volume"
-      },
-      "title": "Daily Case Trend - Last 7 Days",
-      "options": {
-        "backgroundColor": "#FFFFFF",
-        "seriesColors": [
-          "#0076A8"
-        ],
-        "legendDisplay": "off"
-      }
-    },
-    "viz_workflow_state": {
-      "type": "splunk.bar",
-      "dataSources": {
-        "primary": "ds_workflow_state"
-      },
-      "title": "Case Queue by Workflow State",
-      "options": {
-        "backgroundColor": "#FFFFFF",
-        "seriesColors": [
-          "#00ABAB"
-        ],
-        "legendDisplay": "off"
-      }
-    },
-    "viz_notable_cases": {
-      "type": "splunk.table",
-      "dataSources": {
-        "primary": "ds_notable_cases"
-      },
-      "title": "Splunk ES Notable-Linked ServiceNow Cases",
-      "options": {
-        "headerBackgroundColor": "#0076A8",
-        "headerTextColor": "#FFFFFF",
-        "rowBackgroundColor": "#FFFFFF",
-        "fontColor": "#53565A"
-      },
-      "eventHandlers": [
-        {
-          "type": "drilldown.customUrl",
-          "options": {
-            "fields": [
-              "number"
-            ],
-            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number.value$%22&earliest=-30d&latest=now",
-            "newTab": true
-          }
-        }
-      ],
-      "description": "Click an incident number to open the full ServiceNow case search."
-    },
-    "viz_high_risk_assets": {
-      "type": "splunk.table",
-      "dataSources": {
-        "primary": "ds_high_risk_assets"
-      },
-      "title": "Assets and Business Services with Case Activity",
-      "options": {
-        "headerBackgroundColor": "#00ABAB",
-        "headerTextColor": "#FFFFFF",
-        "rowBackgroundColor": "#FFFFFF",
-        "fontColor": "#53565A"
-      },
-      "eventHandlers": [
-        {
-          "type": "drilldown.customUrl",
-          "options": {
-            "fields": [
-              "cmdb_ci"
-            ],
-            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20cmdb_ci%3D%22$row.cmdb_ci.value$%22&earliest=-30d&latest=now",
-            "newTab": true
-          }
-        }
-      ],
-      "description": "Click a CMDB CI to open all related cases for that asset."
-    },
-    "viz_open_cases_label": {
-      "type": "splunk.markdown",
-      "options": {
-        "markdown": "**OPEN CASES**",
-        "fontColor": "#FFFFFF",
-        "backgroundColor": "#000000"
-      }
-    },
-    "viz_notables_label": {
-      "type": "splunk.markdown",
-      "options": {
-        "markdown": "**ES NOTABLE-LINKED CASES**",
-        "fontColor": "#FFFFFF",
-        "backgroundColor": "#0076A8"
-      }
-    },
-    "viz_critical_label": {
-      "type": "splunk.markdown",
-      "options": {
-        "markdown": "**HIGH / CRITICAL OPEN**",
-        "fontColor": "#FFFFFF",
-        "backgroundColor": "#86BC25"
-      }
-    },
-    "viz_avg_age_label": {
-      "type": "splunk.markdown",
-      "options": {
-        "markdown": "**AVG OPEN AGE**",
-        "fontColor": "#FFFFFF",
-        "backgroundColor": "#53565A"
-      }
-    }
-  },
-  "layout": {
-    "type": "absolute",
-    "options": {
-      "width": 1440,
-      "height": 2340,
-      "backgroundColor": "#FFFFFF"
-    },
-    "structure": [
-      {
-        "item": "viz_background",
-        "type": "block",
-        "position": {
-          "x": 0,
-          "y": 0,
-          "w": 1440,
-          "h": 135
-        }
-      },
-      {
-        "item": "viz_accent_bar",
-        "type": "block",
-        "position": {
-          "x": 0,
-          "y": 135,
-          "w": 1440,
-          "h": 14
-        }
-      },
-      {
-        "item": "viz_open_cases_label",
-        "type": "block",
-        "position": {
-          "x": 30,
-          "y": 180,
-          "w": 320,
-          "h": 42
-        }
-      },
-      {
-        "item": "viz_notables_label",
-        "type": "block",
-        "position": {
-          "x": 380,
-          "y": 180,
-          "w": 320,
-          "h": 42
-        }
-      },
-      {
-        "item": "viz_critical_label",
-        "type": "block",
-        "position": {
-          "x": 730,
-          "y": 180,
-          "w": 320,
-          "h": 42
-        }
-      },
-      {
-        "item": "viz_avg_age_label",
-        "type": "block",
-        "position": {
-          "x": 1080,
-          "y": 180,
-          "w": 320,
-          "h": 42
-        }
-      },
-      {
-        "item": "viz_open_cases",
-        "type": "block",
-        "position": {
-          "x": 30,
-          "y": 222,
-          "w": 320,
-          "h": 150
-        }
-      },
-      {
-        "item": "viz_notables",
-        "type": "block",
-        "position": {
-          "x": 380,
-          "y": 222,
-          "w": 320,
-          "h": 150
-        }
-      },
-      {
-        "item": "viz_critical",
-        "type": "block",
-        "position": {
-          "x": 730,
-          "y": 222,
-          "w": 320,
-          "h": 150
-        }
-      },
-      {
-        "item": "viz_avg_age",
-        "type": "block",
-        "position": {
-          "x": 1080,
-          "y": 222,
-          "w": 320,
-          "h": 150
-        }
-      },
-      {
-        "item": "viz_open_queue",
-        "type": "block",
-        "position": {
-          "x": 30,
-          "y": 405,
-          "w": 1370,
-          "h": 430
-        }
-      },
-      {
-        "item": "viz_daily_volume",
-        "type": "block",
-        "position": {
-          "x": 30,
-          "y": 870,
-          "w": 1370,
-          "h": 460
-        }
-      },
-      {
-        "item": "viz_workflow_state",
-        "type": "block",
-        "position": {
-          "x": 30,
-          "y": 1365,
-          "w": 1370,
-          "h": 460
-        }
-      },
-      {
-        "item": "viz_notable_cases",
-        "type": "block",
-        "position": {
-          "x": 30,
-          "y": 1860,
-          "w": 1370,
-          "h": 280
-        }
-      },
-      {
-        "item": "viz_high_risk_assets",
-        "type": "block",
-        "position": {
-          "x": 30,
-          "y": 2175,
-          "w": 1370,
-          "h": 140
-        }
-      }
-    ],
-    "globalInputs": [
-      "input_global_time"
-    ]
   },
   "defaults": {
     "dataSources": {
@@ -482,6 +26,557 @@
       "global": {
         "showProgressBar": true
       }
+    }
+  },
+  "dataSources": {
+    "ds_kpi_open_cases": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident state!=\"Closed\"\n| stats count as value",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_kpi_mc_findings": {
+      "options": {
+        "query": "index=notable\n| search rule_name=\"*Mission Control*\" OR rule_name=\"*SOC*Queue*\" OR title=\"INC*\"\n| stats count as value",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_kpi_linked_inc": {
+      "options": {
+        "query": "index=demo_security sourcetype=demo:es:incident\n| stats dc(snow_incident_number) as value",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_kpi_critical": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident priority IN (\"1 - Critical\",\"2 - High\") state!=\"Closed\"\n| stats count as value",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_kpi_avg_age": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident state!=\"Closed\"\n| eval age_hours=(now()-_time)/3600\n| stats avg(age_hours) as value\n| eval value=round(value,1)",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_open_queue": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| search state!=\"Closed\"\n| eval age_hours=round((now()-_time)/3600,1)\n| table _time number priority state assigned_to cmdb_ci business_service age_hours short_description\n| sort priority - _time",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_mc_inc_linkage": {
+      "options": {
+        "query": "index=demo_security sourcetype=demo:es:incident\n| eval service_now_inc=snow_incident_number, es_source_title=name\n| table _time soc_queue notable_id service_now_inc es_source_title urgency severity status_name assignee risk_object cmdb_ci business_service correlation_search\n| join type=left notable_id [\n    search index=notable\n    | search rule_name=\"*Mission Control*\" OR rule_name=\"*SOC*Queue*\" OR title=\"INC*\"\n    | eval notable_id=coalesce(notable_id, event_id)\n    | stats latest(_time) AS mc_finding_time latest(title) AS mc_finding_title latest(rule_name) AS detection_name latest(urgency) AS mc_urgency latest(severity) AS mc_severity latest(owner) AS mc_owner latest(status) AS mc_status latest(snow_incident_number) AS mc_snow_inc BY notable_id\n]\n| eval service_now_inc=coalesce(service_now_inc, mc_snow_inc)\n| join type=left service_now_inc [\n    search index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*\n    | eval service_now_inc=number\n    | stats latest(priority) AS inc_priority latest(state) AS inc_state latest(assigned_to) AS inc_assignee latest(short_description) AS inc_summary latest(u_splunk_correlation_search) AS inc_correlation_search BY service_now_inc\n]\n| eval linkage=case(isnotnull(mc_finding_title) AND isnotnull(inc_state), \"Mission Control + ServiceNow\", isnotnull(mc_finding_title), \"Mission Control only\", isnotnull(inc_state), \"ServiceNow only\", 1=1, \"Source only\")\n| table _time soc_queue service_now_inc notable_id es_source_title mc_finding_title detection_name mc_urgency mc_severity mc_owner mc_status inc_priority inc_state inc_assignee cmdb_ci business_service linkage\n| sort soc_queue - _time",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_mc_findings_only": {
+      "options": {
+        "query": "index=notable\n| search rule_name=\"*Mission Control*\" OR rule_name=\"*SOC*Queue*\" OR title=\"INC*\"\n| eval notable_id=coalesce(notable_id, event_id), service_now_inc=coalesce(snow_incident_number, mvindex(split(title,\" \"),0))\n| table _time rule_name title urgency severity owner status service_now_inc notable_id soc_queue risk_object cmdb_ci business_service\n| sort - _time",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_mc_soc_queue": {
+      "options": {
+        "query": "index=demo_security sourcetype=demo:es:incident\n| stats count AS Findings by soc_queue\n| sort - Findings",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_daily_volume": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident earliest=-7d@d\n| bin _time span=1d\n| stats count as Cases by _time\n| eval Day=strftime(_time, \"%a %m/%d\")\n| sort _time\n| table Day Cases",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_workflow_state": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| eval State=coalesce(state, \"Unknown\")\n| stats count as Cases by State\n| eval sort_order=case(State=\"New\",1, State=\"In Progress\",2, State=\"On Hold\",3, State=\"Resolved\",4, State=\"Closed\",5, true(),99)\n| sort sort_order\n| fields State Cases",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_notable_cases": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*\n| table _time number priority state cmdb_ci business_service u_splunk_notable_event_id u_splunk_correlation_search u_mitre_tactic u_mitre_technique\n| sort - _time",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    },
+    "ds_high_risk_assets": {
+      "options": {
+        "query": "index=demo_servicenow sourcetype=demo:snow:incident\n| stats count values(priority) as priorities values(state) as states by cmdb_ci business_service\n| sort - count",
+        "queryParameters": {
+          "earliest": "$global_time.earliest$",
+          "latest": "$global_time.latest$"
+        }
+      },
+      "type": "ds.search"
+    }
+  },
+  "visualizations": {
+    "viz_background": {
+      "options": {
+        "backgroundColor": "#000000",
+        "fontColor": "#FFFFFF",
+        "markdown": "# SOC Case Management\nServiceNow cases linked to Splunk Enterprise Security Mission Control findings\n\nMonitor open INCs, Mission Control notables, SOC queue assignment, and cross-platform linkage status."
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_accent_bar": {
+      "options": {
+        "backgroundColor": "#86BC25",
+        "markdown": " "
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_mc_section": {
+      "options": {
+        "backgroundColor": "#0076A8",
+        "fontColor": "#FFFFFF",
+        "markdown": "**MISSION CONTROL ↔ SERVICENOW INC LINKAGE**"
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_open_cases_label": {
+      "options": {
+        "backgroundColor": "#000000",
+        "fontColor": "#FFFFFF",
+        "markdown": "**OPEN CASES**"
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_mc_findings_label": {
+      "options": {
+        "backgroundColor": "#0076A8",
+        "fontColor": "#FFFFFF",
+        "markdown": "**MC FINDINGS**"
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_linked_inc_label": {
+      "options": {
+        "backgroundColor": "#00ABAB",
+        "fontColor": "#FFFFFF",
+        "markdown": "**LINKED INCS**"
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_critical_label": {
+      "options": {
+        "backgroundColor": "#86BC25",
+        "fontColor": "#FFFFFF",
+        "markdown": "**HIGH / CRITICAL OPEN**"
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_avg_age_label": {
+      "options": {
+        "backgroundColor": "#53565A",
+        "fontColor": "#FFFFFF",
+        "markdown": "**AVG OPEN AGE**"
+      },
+      "type": "splunk.markdown"
+    },
+    "viz_open_cases": {
+      "dataSources": {
+        "primary": "ds_kpi_open_cases"
+      },
+      "options": {
+        "backgroundColor": "#FFFFFF",
+        "majorColor": "#000000",
+        "trendColor": "#86BC25"
+      },
+      "title": "Count",
+      "type": "splunk.singlevalue"
+    },
+    "viz_mc_findings": {
+      "dataSources": {
+        "primary": "ds_kpi_mc_findings"
+      },
+      "options": {
+        "backgroundColor": "#FFFFFF",
+        "majorColor": "#0076A8"
+      },
+      "title": "Count",
+      "type": "splunk.singlevalue"
+    },
+    "viz_linked_inc": {
+      "dataSources": {
+        "primary": "ds_kpi_linked_inc"
+      },
+      "options": {
+        "backgroundColor": "#FFFFFF",
+        "majorColor": "#00ABAB"
+      },
+      "title": "Count",
+      "type": "splunk.singlevalue"
+    },
+    "viz_critical": {
+      "dataSources": {
+        "primary": "ds_kpi_critical"
+      },
+      "options": {
+        "backgroundColor": "#FFFFFF",
+        "majorColor": "#86BC25"
+      },
+      "title": "Count",
+      "type": "splunk.singlevalue"
+    },
+    "viz_avg_age": {
+      "dataSources": {
+        "primary": "ds_kpi_avg_age"
+      },
+      "options": {
+        "backgroundColor": "#FFFFFF",
+        "majorColor": "#53565A",
+        "unit": "hrs"
+      },
+      "title": "Hours",
+      "type": "splunk.singlevalue"
+    },
+    "viz_mc_inc_linkage": {
+      "dataSources": {
+        "primary": "ds_mc_inc_linkage"
+      },
+      "description": "Click ServiceNow INC or Mission Control finding title to drill down.",
+      "eventHandlers": [
+        {
+          "options": {
+            "fields": [
+              "service_now_inc"
+            ],
+            "newTab": true,
+            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.service_now_inc.value$%22&amp;earliest=-30d&amp;latest=now"
+          },
+          "type": "drilldown.customUrl"
+        },
+        {
+          "options": {
+            "fields": [
+              "mc_finding_title"
+            ],
+            "newTab": true,
+            "url": "/app/search/search?q=search%20index%3Dnotable%20title%3D%22$row.mc_finding_title.value$%22&amp;earliest=-30d&amp;latest=now"
+          },
+          "type": "drilldown.customUrl"
+        }
+      ],
+      "options": {
+        "fontColor": "#53565A",
+        "headerBackgroundColor": "#0076A8",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF"
+      },
+      "title": "Mission Control Findings Linked to ServiceNow INCs",
+      "type": "splunk.table"
+    },
+    "viz_mc_findings_only": {
+      "dataSources": {
+        "primary": "ds_mc_findings_only"
+      },
+      "description": "Native Mission Control findings from index=notable.",
+      "eventHandlers": [
+        {
+          "options": {
+            "fields": [
+              "title"
+            ],
+            "newTab": true,
+            "url": "/app/search/search?q=search%20index%3Dnotable%20title%3D%22$row.title.value$%22&amp;earliest=-30d&amp;latest=now"
+          },
+          "type": "drilldown.customUrl"
+        }
+      ],
+      "options": {
+        "fontColor": "#53565A",
+        "headerBackgroundColor": "#53565A",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF"
+      },
+      "title": "Mission Control Notable Events (index=notable)",
+      "type": "splunk.table"
+    },
+    "viz_mc_soc_queue": {
+      "dataSources": {
+        "primary": "ds_mc_soc_queue"
+      },
+      "options": {
+        "seriesColors": [
+          "#0076A8",
+          "#86BC25"
+        ]
+      },
+      "title": "Mission Control Source Events by SOC Queue",
+      "type": "splunk.pie"
+    },
+    "viz_open_queue": {
+      "dataSources": {
+        "primary": "ds_open_queue"
+      },
+      "description": "Click an incident number to open the full ServiceNow case search.",
+      "eventHandlers": [
+        {
+          "options": {
+            "fields": [
+              "number"
+            ],
+            "newTab": true,
+            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number.value$%22&amp;earliest=-30d&amp;latest=now"
+          },
+          "type": "drilldown.customUrl"
+        }
+      ],
+      "options": {
+        "fontColor": "#53565A",
+        "headerBackgroundColor": "#000000",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF"
+      },
+      "title": "Open SOC Queue",
+      "type": "splunk.table"
+    },
+    "viz_daily_volume": {
+      "dataSources": {
+        "primary": "ds_daily_volume"
+      },
+      "title": "Daily Case Trend - Last 7 Days",
+      "type": "splunk.column"
+    },
+    "viz_workflow_state": {
+      "dataSources": {
+        "primary": "ds_workflow_state"
+      },
+      "title": "Case Queue by Workflow State",
+      "type": "splunk.bar"
+    },
+    "viz_notable_cases": {
+      "dataSources": {
+        "primary": "ds_notable_cases"
+      },
+      "description": "Click an incident number to open the full ServiceNow case search.",
+      "eventHandlers": [
+        {
+          "options": {
+            "fields": [
+              "number"
+            ],
+            "newTab": true,
+            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.number.value$%22&amp;earliest=-30d&amp;latest=now"
+          },
+          "type": "drilldown.customUrl"
+        }
+      ],
+      "options": {
+        "fontColor": "#53565A",
+        "headerBackgroundColor": "#0076A8",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF"
+      },
+      "title": "ServiceNow INCs with Splunk Notable IDs",
+      "type": "splunk.table"
+    },
+    "viz_high_risk_assets": {
+      "dataSources": {
+        "primary": "ds_high_risk_assets"
+      },
+      "description": "Click a CMDB CI to open all related cases for that asset.",
+      "eventHandlers": [
+        {
+          "options": {
+            "fields": [
+              "cmdb_ci"
+            ],
+            "newTab": true,
+            "url": "/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20cmdb_ci%3D%22$row.cmdb_ci.value$%22&amp;earliest=-30d&amp;latest=now"
+          },
+          "type": "drilldown.customUrl"
+        }
+      ],
+      "options": {
+        "fontColor": "#53565A",
+        "headerBackgroundColor": "#00ABAB",
+        "headerTextColor": "#FFFFFF",
+        "rowBackgroundColor": "#FFFFFF"
+      },
+      "title": "Assets and Business Services with Case Activity",
+      "type": "splunk.table"
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_global_time"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "options": {
+          "backgroundColor": "#FFFFFF",
+          "height": 3180,
+          "width": 1440
+        },
+        "structure": [
+          {
+            "item": "viz_background",
+            "position": { "h": 135, "w": 1440, "x": 0, "y": 0 },
+            "type": "block"
+          },
+          {
+            "item": "viz_accent_bar",
+            "position": { "h": 14, "w": 1440, "x": 0, "y": 135 },
+            "type": "block"
+          },
+          {
+            "item": "viz_open_cases_label",
+            "position": { "h": 42, "w": 256, "x": 30, "y": 180 },
+            "type": "block"
+          },
+          {
+            "item": "viz_mc_findings_label",
+            "position": { "h": 42, "w": 256, "x": 306, "y": 180 },
+            "type": "block"
+          },
+          {
+            "item": "viz_linked_inc_label",
+            "position": { "h": 42, "w": 256, "x": 582, "y": 180 },
+            "type": "block"
+          },
+          {
+            "item": "viz_critical_label",
+            "position": { "h": 42, "w": 256, "x": 858, "y": 180 },
+            "type": "block"
+          },
+          {
+            "item": "viz_avg_age_label",
+            "position": { "h": 42, "w": 256, "x": 1134, "y": 180 },
+            "type": "block"
+          },
+          {
+            "item": "viz_open_cases",
+            "position": { "h": 130, "w": 256, "x": 30, "y": 222 },
+            "type": "block"
+          },
+          {
+            "item": "viz_mc_findings",
+            "position": { "h": 130, "w": 256, "x": 306, "y": 222 },
+            "type": "block"
+          },
+          {
+            "item": "viz_linked_inc",
+            "position": { "h": 130, "w": 256, "x": 582, "y": 222 },
+            "type": "block"
+          },
+          {
+            "item": "viz_critical",
+            "position": { "h": 130, "w": 256, "x": 858, "y": 222 },
+            "type": "block"
+          },
+          {
+            "item": "viz_avg_age",
+            "position": { "h": 130, "w": 256, "x": 1134, "y": 222 },
+            "type": "block"
+          },
+          {
+            "item": "viz_mc_section",
+            "position": { "h": 42, "w": 1370, "x": 30, "y": 375 },
+            "type": "block"
+          },
+          {
+            "item": "viz_mc_inc_linkage",
+            "position": { "h": 380, "w": 1370, "x": 30, "y": 420 },
+            "type": "block"
+          },
+          {
+            "item": "viz_mc_findings_only",
+            "position": { "h": 280, "w": 900, "x": 30, "y": 820 },
+            "type": "block"
+          },
+          {
+            "item": "viz_mc_soc_queue",
+            "position": { "h": 280, "w": 440, "x": 960, "y": 820 },
+            "type": "block"
+          },
+          {
+            "item": "viz_open_queue",
+            "position": { "h": 380, "w": 1370, "x": 30, "y": 1120 },
+            "type": "block"
+          },
+          {
+            "item": "viz_daily_volume",
+            "position": { "h": 400, "w": 670, "x": 30, "y": 1525 },
+            "type": "block"
+          },
+          {
+            "item": "viz_workflow_state",
+            "position": { "h": 400, "w": 670, "x": 730, "y": 1525 },
+            "type": "block"
+          },
+          {
+            "item": "viz_notable_cases",
+            "position": { "h": 280, "w": 1370, "x": 30, "y": 1950 },
+            "type": "block"
+          },
+          {
+            "item": "viz_high_risk_assets",
+            "position": { "h": 160, "w": 1370, "x": 30, "y": 2260 },
+            "type": "block"
+          }
+        ],
+        "type": "absolute"
+      }
+    },
+    "tabs": {
+      "items": [
+        {
+          "label": "SOC Case Management",
+          "layoutId": "layout_1"
+        }
+      ]
     }
   }
 }

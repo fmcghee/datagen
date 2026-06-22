@@ -32,11 +32,27 @@ In Splunk:
 
 ## Data expectations
 
-Both dashboards expect the ServiceNow demo events in:
+Both dashboards expect demo data in:
 
 ```spl
 index=demo_servicenow sourcetype=demo:snow:incident
+index=demo_security sourcetype=demo:es:incident
+index=notable rule_name="*Mission Control*"
 ```
+
+## Mission Control linkage panels
+
+The updated dashboard adds panels that show how Mission Control findings tie to
+ServiceNow INCs:
+
+- **Mission Control Findings Linked to ServiceNow INCs** - joins
+  `demo:es:incident` source rows, `index=notable` findings, and ServiceNow INC
+  records on `notable_id` / `service_now_inc`.
+- **Mission Control Notable Events** - native findings from `index=notable`.
+- **Mission Control Source Events by SOC Queue** - SOC 1 / SOC 2 distribution.
+
+The **linkage** column shows whether each row is tied across Mission Control and
+ServiceNow (`Mission Control + ServiceNow`) or only one side.
 
 ## Drilldowns
 
@@ -83,13 +99,14 @@ background and chart color options.
 
 ## KPI labels
 
-The four KPI numbers near the top of the Dashboard Studio version are:
+The five KPI numbers near the top of the Dashboard Studio version are:
 
 1. **Open Cases** - incidents where `state!="Closed"`
-2. **ES Notable-Linked Cases** - incidents with `u_splunk_notable_event_id=*`
-3. **High / Critical Open** - open incidents with priority `1 - Critical` or
+2. **MC Findings** - findings in `index=notable` from Mission Control demo detections
+3. **Linked INCs** - distinct ServiceNow INCs in `demo:es:incident` source data
+4. **High / Critical Open** - open incidents with priority `1 - Critical` or
    `2 - High`
-4. **Avg Open Age** - average age, in hours, for the active case queue
+5. **Avg Open Age** - average age, in hours, for the active case queue
 
 The Dashboard Studio layout uses separate colored label bars above the KPI
 values so the labels stay visible even when Splunk renders single-value panels

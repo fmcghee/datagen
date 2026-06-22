@@ -5,7 +5,7 @@
     <input type="time" token="time_range" searchWhenChanged="true">
       <label>Time Range</label>
       <default>
-        <earliest>-7d@d</earliest>
+        <earliest>-30d@d</earliest>
         <latest>now</latest>
       </default>
     </input>
@@ -23,7 +23,7 @@
         </style>
         <div class="deloitte-hero">
           <h1>SOC Case Management</h1>
-          <p>Monitor open cases, Splunk ES notable-linked incidents, workflow state, and impacted business services.</p>
+          <p>Monitor open ServiceNow INCs, Mission Control findings, SOC queue assignment, and cross-platform linkage.</p>
         </div>
       </html>
     </panel>
@@ -32,7 +32,7 @@
     <panel>
       <html>
         <div style="background:#86BC25;color:#FFFFFF;padding:10px 14px;font-weight:700;">
-          KPI labels: Open Cases | ES Notable-Linked Cases | High / Critical Open | Avg Open Age Hours
+          KPI labels: Open Cases | MC Findings | Linked INCs | High / Critical Open | Avg Open Age Hours
         </div>
       </html>
     </panel>
@@ -55,17 +55,27 @@
     </panel>
     <panel>
       <single>
-        <title>ES Notable-Linked Cases</title>
+        <title>Mission Control Findings</title>
         <search>
-          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
+          <query><![CDATA[index=notable
+| search rule_name="*Mission Control*" OR rule_name="*SOC*Queue*" OR title="INC*"
 | stats count as value]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
         </search>
-        <option name="underLabel">Cases sourced from Splunk ES detections</option>
-        <option name="colorBy">value</option>
-        <option name="rangeColors">["0x0076A8","0x00ABAB","0x86BC25"]</option>
-        <option name="rangeValues">[5,15]</option>
+        <option name="underLabel">Findings in index=notable</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Linked INCs</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| stats dc(snow_incident_number) as value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="underLabel">ES source rows tied to ServiceNow</option>
       </single>
     </panel>
     <panel>
@@ -100,6 +110,79 @@
         <option name="rangeColors">["0x86BC25","0x00ABAB","0x53565A"]</option>
         <option name="rangeValues">[24,72]</option>
       </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>
+        <div style="background:#0076A8;color:#FFFFFF;padding:10px 14px;font-weight:700;">
+          Mission Control ↔ ServiceNow INC Linkage
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Mission Control Findings Linked to ServiceNow INCs</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| eval service_now_inc=snow_incident_number, es_source_title=name
+| table _time soc_queue notable_id service_now_inc es_source_title urgency severity status_name assignee risk_object cmdb_ci business_service correlation_search
+| join type=left notable_id [
+    search index=notable
+    | search rule_name="*Mission Control*" OR rule_name="*SOC*Queue*" OR title="INC*"
+    | eval notable_id=coalesce(notable_id, event_id)
+    | stats latest(_time) AS mc_finding_time latest(title) AS mc_finding_title latest(rule_name) AS detection_name latest(urgency) AS mc_urgency latest(severity) AS mc_severity latest(owner) AS mc_owner latest(status) AS mc_status latest(snow_incident_number) AS mc_snow_inc BY notable_id
+]
+| eval service_now_inc=coalesce(service_now_inc, mc_snow_inc)
+| join type=left service_now_inc [
+    search index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
+    | eval service_now_inc=number
+    | stats latest(priority) AS inc_priority latest(state) AS inc_state latest(assigned_to) AS inc_assignee latest(short_description) AS inc_summary BY service_now_inc
+]
+| eval linkage=case(isnotnull(mc_finding_title) AND isnotnull(inc_state), "Mission Control + ServiceNow", isnotnull(mc_finding_title), "Mission Control only", isnotnull(inc_state), "ServiceNow only", 1=1, "Source only")
+| table _time soc_queue service_now_inc notable_id es_source_title mc_finding_title detection_name mc_urgency mc_severity mc_owner mc_status inc_priority inc_state inc_assignee cmdb_ci business_service linkage
+| sort soc_queue - _time]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">15</option>
+        <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.service_now_inc$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Mission Control Notable Events (index=notable)</title>
+        <search>
+          <query><![CDATA[index=notable
+| search rule_name="*Mission Control*" OR rule_name="*SOC*Queue*" OR title="INC*"
+| eval notable_id=coalesce(notable_id, event_id), service_now_inc=coalesce(snow_incident_number, mvindex(split(title," "),0))
+| table _time rule_name title urgency severity owner status service_now_inc notable_id soc_queue risk_object cmdb_ci business_service
+| sort - _time]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">10</option>
+      </table>
+    </panel>
+    <panel>
+      <chart>
+        <title>Mission Control Source Events by SOC Queue</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| stats count AS Findings by soc_queue
+| sort - Findings]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+      </chart>
     </panel>
   </row>
   <row>
@@ -167,7 +250,7 @@
   <row>
     <panel>
       <table>
-        <title>Splunk ES Notable-Linked ServiceNow Cases</title>
+        <title>ServiceNow INCs with Splunk Notable IDs</title>
         <search>
           <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
 | table _time number priority state cmdb_ci business_service u_splunk_notable_event_id u_splunk_correlation_search u_mitre_tactic u_mitre_technique
