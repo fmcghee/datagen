@@ -48,6 +48,11 @@ Use the saved searches `demo_es85_detection_soc1_template` and
 with **Output > Create findings**. Mission Control Incidents adaptive response
 is not required on ES 8.5.
 
+If detections cannot create native findings on your stack, use **Mission Control
+Simulator** in this app instead. It reads `demo:es:incident` rows and presents
+SOC 1 / SOC 2 queue views for demos. See
+`datasets/mission_control/ALTERNATIVES.md` for other fallback methods.
+
 ## HEC alternative
 
 You can still use the repository script `send_csv_to_splunk.py` if you prefer

@@ -76,6 +76,17 @@
             </ol>
           </div>
           <div class="setup-section">
+            <h2>5b. Mission Control fallback (if detections fail)</h2>
+            <div class="setup-note">Use this when ES event-based detections cannot write findings to native Mission Control.</div>
+            <ol>
+              <li>Confirm <code>index=demo_security sourcetype=demo:es:incident</code> has rows.</li>
+              <li>Open <strong>Mission Control Simulator</strong> from this app navigation menu.</li>
+              <li>Select <strong>SOC 1 Queue</strong> or <strong>SOC 2 Queue</strong> from the dropdown.</li>
+              <li>Use the analyst queue table and drill down to linked ServiceNow INCs.</li>
+            </ol>
+            <p><code>| makeresults</code> or <code>| collect index=notable</code> alone usually does <strong>not</strong> populate native Mission Control in ES 8.5. The simulator dashboard is the reliable demo substitute.</p>
+          </div>
+          <div class="setup-section">
             <h2>6. Open the SOC dashboard</h2>
             <p>After data is loaded, open <strong>SOC Case Management</strong> from this app navigation menu.</p>
           </div>
