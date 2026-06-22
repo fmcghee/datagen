@@ -1,0 +1,137 @@
+<dashboard version="1.1" theme="light">
+  <label>Demo Talk Track</label>
+  <description>25–30 minute demo script for ServiceNow + ES Mission Control linkage.</description>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .tt-body { font-family: Arial, sans-serif; color: #53565A; line-height: 1.55; max-width: 960px; }
+          .tt-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; margin-bottom: 20px; }
+          .tt-hero h1 { margin: 0; font-size: 28px; color: #FFFFFF; }
+          .tt-hero p { margin: 8px 0 0 0; font-size: 14px; }
+          .tt-act { margin: 16px 0; padding: 16px 18px; border: 1px solid #000000; background: #FFFFFF; }
+          .tt-act h2 { margin: 0 0 8px 0; color: #000000; font-size: 18px; }
+          .tt-act h3 { margin: 12px 0 6px 0; font-size: 15px; color: #0076A8; }
+          .tt-say { background: #F4F4F4; border-left: 4px solid #86BC25; padding: 10px 14px; font-style: italic; margin: 10px 0; }
+          .tt-screen { font-weight: 700; color: #000000; }
+          .tt-code { background: #F4F4F4; padding: 10px 12px; font-family: monospace; white-space: pre-wrap; font-size: 12px; margin: 8px 0; }
+          .tt-table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+          .tt-table th, .tt-table td { border: 1px solid #53565A; padding: 6px 10px; text-align: left; }
+          .tt-table th { background: #000000; color: #FFFFFF; }
+          .tt-flow { background: #53565A; color: #FFFFFF; padding: 12px 16px; font-family: monospace; white-space: pre-wrap; font-size: 12px; margin: 12px 0; }
+          .tt-check { background: #86BC25; color: #FFFFFF; padding: 10px 12px; font-weight: 700; margin-bottom: 12px; }
+          .tt-nav { margin: 16px 0; padding: 12px; border: 2px solid #86BC25; }
+          .tt-nav a { color: #0076A8; font-weight: 700; }
+        </style>
+        <div class="tt-body">
+          <div class="tt-hero">
+            <h1>ServiceNow + Splunk ES Mission Control Demo</h1>
+            <p><strong>Duration:</strong> 25–30 min &nbsp;|&nbsp; <strong>Time range:</strong> Last 30 days &nbsp;|&nbsp; <strong>Audience:</strong> SOC, IT leadership, ES evaluators</p>
+          </div>
+
+          <div class="tt-check">Pre-demo: Load data, enable MC alerts/detections, set Last 30 days on all dashboards.</div>
+
+          <div class="tt-act">
+            <h2>Storyline</h2>
+            <p>A regional financial institution runs dual SOC queues (SOC 1 and SOC 2). Mission Control surfaces findings; ServiceNow tracks remediation; Splunk links both.</p>
+            <p>All data is synthetic.</p>
+          </div>
+
+          <div class="tt-act">
+            <h2>Act 1 — Opening (2 min)</h2>
+            <p class="tt-screen">Screen: Demo Talk Track</p>
+            <div class="tt-say">"Today I'll show how Splunk ES Mission Control and ServiceNow work together for case management. We detect in ES, triage in Mission Control, and remediate in ServiceNow — with Splunk linking both so analysts don't swivel-chair between tools."</div>
+            <p><strong>Key message:</strong> Detect → Triage → Remediate → Report</p>
+          </div>
+
+          <div class="tt-act">
+            <h2>Act 2 — Data architecture (3 min)</h2>
+            <p class="tt-screen">Screen: <a href="/app/demo_servicenow_es/demo_setup">Demo Setup</a></p>
+            <div class="tt-say">"This demo uses a portable Splunk app with synthetic ServiceNow incidents, CMDB assets, and ES/Mission Control source events in dedicated demo indexes."</div>
+            <table class="tt-table">
+              <tr><th>Index</th><th>Sourcetype</th><th>Represents</th></tr>
+              <tr><td>demo_servicenow</td><td>demo:snow:incident</td><td>ServiceNow INC records</td></tr>
+              <tr><td>demo_security</td><td>demo:es:incident</td><td>ES/MC source rows</td></tr>
+              <tr><td>notable</td><td>(ES findings)</td><td>Native Mission Control findings</td></tr>
+            </table>
+            <div class="tt-code">index IN (demo_servicenow, demo_security) OR index=notable
+| stats count by index sourcetype
+| sort index</div>
+          </div>
+
+          <div class="tt-act">
+            <h2>Act 3 — Mission Control analyst queue (8 min)</h2>
+            <p class="tt-screen">Screen: ES → Mission Control → Analyst queue</p>
+            <div class="tt-say">"Analysts start in Mission Control. Findings from correlation searches and detections appear here for triage, assignment, and investigation."</div>
+            <p>Saved views:</p>
+            <div class="tt-code">"soc_queue=\"SOC 1 Queue\""
+"soc_queue=\"SOC 2 Queue\""</div>
+            <div class="tt-say">"Each finding ties back to a ServiceNow INC and notable ID so we know which ITSM ticket owns remediation."</div>
+            <p>Open one finding — highlight title, urgency, owner, entity/risk object, snow_incident_number, soc_queue.</p>
+            <p><strong>Fallback:</strong> <a href="/app/demo_servicenow_es/mission_control_simulator">Mission Control Simulator</a></p>
+          </div>
+
+          <div class="tt-act">
+            <h2>Act 4 — ServiceNow case queue (7 min)</h2>
+            <p class="tt-screen">Screen: <a href="/app/demo_servicenow_es/soc_case_management">SOC Case Management</a></p>
+            <div class="tt-say">"While Mission Control is the analyst triage console, ServiceNow remains the system of record for ITSM."</div>
+            <table class="tt-table">
+              <tr><th>KPI</th><th>Talk track</th></tr>
+              <tr><td>Open Cases</td><td>Active INCs not yet closed</td></tr>
+              <tr><td>MC Findings</td><td>Findings in index=notable from demo alerts</td></tr>
+              <tr><td>Linked INCs</td><td>Distinct ServiceNow cases in ES source data</td></tr>
+              <tr><td>High/Critical Open</td><td>Priority workload for leadership</td></tr>
+              <tr><td>Avg Open Age</td><td>Queue health metric</td></tr>
+            </table>
+            <p>Drill into an INC — show u_splunk_notable_event_id, u_splunk_correlation_search, MITRE fields, cmdb_ci, business_service.</p>
+          </div>
+
+          <div class="tt-act">
+            <h2>Act 5 — Cross-platform linkage (6 min)</h2>
+            <p class="tt-screen">Screen: SOC Case Management → Mission Control Findings Linked to ServiceNow INCs</p>
+            <div class="tt-say">"This table shows how Mission Control findings, ES source events, and ServiceNow INCs connect. When linkage shows 'Mission Control + ServiceNow', analysts trust triage in ES and remediation in ServiceNow refer to the same incident."</div>
+            <p>Also show: Mission Control Notable Events panel and SOC Queue pie chart.</p>
+          </div>
+
+          <div class="tt-act">
+            <h2>Act 6 — Charts &amp; metrics (3 min)</h2>
+            <p class="tt-screen">Screen: Daily Case Trend, Workflow State, Assets with Case Activity</p>
+            <div class="tt-say">"Leadership cares about trends — daily volume, workflow stalls, and which CIs drive the most case activity."</div>
+          </div>
+
+          <div class="tt-act">
+            <h2>Act 7 — Close (2 min)</h2>
+            <div class="tt-say">"Splunk ES Mission Control gives analysts a unified queue. ServiceNow remains ITSM system of record. Splunk links both with notable IDs, INC numbers, MITRE context, and asset metadata — detect, triage, and remediate as one workflow."</div>
+          </div>
+
+          <div class="tt-act">
+            <h2>Demo flow</h2>
+            <div class="tt-flow">1. Demo Talk Track (context)
+2. Demo Setup (architecture) — optional
+3. ES Mission Control (native findings)
+4. SOC Case Management (ServiceNow + linkage)
+5. Mission Control Simulator (fallback)
+6. Q&amp;A</div>
+            <div class="tt-nav">
+              <strong>In-app navigation:</strong>
+              <a href="/app/demo_servicenow_es/demo_setup">Demo Setup</a> ·
+              <a href="/app/demo_servicenow_es/soc_case_management">SOC Case Management</a> ·
+              <a href="/app/demo_servicenow_es/mission_control_simulator">Mission Control Simulator</a>
+            </div>
+            <p>Full printable script: <code>DEMO_TALK_TRACK.md</code> in the app root.</p>
+          </div>
+
+          <div class="tt-act">
+            <h2>Q&amp;A</h2>
+            <h3>Real ServiceNow data?</h3>
+            <p>No — all synthetic.</p>
+            <h3>Connect to our ServiceNow?</h3>
+            <p>Splunk Add-on for ServiceNow + ES detections/alerts writing findings to Mission Control.</p>
+            <h3>Mission Control findings don't appear?</h3>
+            <p>Use Mission Control Simulator or classic ES alerts with Finding action. See <code>docs/MISSION_CONTROL_ALTERNATIVES.md</code>.</p>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+</dashboard>

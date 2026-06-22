@@ -13,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "splunk_app" / "demo_servicenow_es"
 DATA_DIR = APP_DIR / "bin" / "data"
+DOCS_DIR = APP_DIR / "docs"
+VIEWS_DIR = APP_DIR / "default" / "data" / "ui" / "views"
 DIST_DIR = ROOT / "dist"
 GENERATOR = ROOT / "scripts" / "generate_servicenow_demo_data.py"
 
@@ -23,6 +25,12 @@ CSV_MAPPINGS = {
     "servicenow_users.csv": ROOT / "output" / "servicenow_users.csv",
     "servicenow_task_ci.csv": ROOT / "datasets" / "servicenow" / "csv" / "servicenow_task_ci.csv",
     "es_incidents.csv": ROOT / "output" / "es_incidents.csv",
+}
+
+SYNC_MAPPINGS = {
+    ROOT / "dashboards" / "soc_case_management_simple_xml.xml": VIEWS_DIR / "soc_case_management.xml",
+    ROOT / "dashboards" / "soc_case_management_dashboard_studio.json": DOCS_DIR / "soc_case_management_dashboard_studio.json",
+    ROOT / "datasets" / "mission_control" / "ALTERNATIVES.md": DOCS_DIR / "MISSION_CONTROL_ALTERNATIVES.md",
 }
 
 
@@ -64,14 +72,29 @@ def copy_demo_data() -> None:
         print(f"Copied {source_path.name} -> {DATA_DIR / target_name}")
 
 
+def sync_app_assets() -> None:
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    VIEWS_DIR.mkdir(parents=True, exist_ok=True)
+    for source_path, target_path in SYNC_MAPPINGS.items():
+        if not source_path.is_file():
+            raise FileNotFoundError(f"Missing sync source: {source_path}")
+        shutil.copy2(source_path, target_path)
+        print(f"Synced {source_path.relative_to(ROOT)} -> {target_path.relative_to(ROOT)}")
+
+
 def package_app() -> Path:
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     archive_path = DIST_DIR / "demo_servicenow_es.tar.gz"
     if archive_path.exists():
         archive_path.unlink()
 
+    def exclude_local(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo | None:
+        if "/local/" in tarinfo.name.replace("\\", "/"):
+            return None
+        return tarinfo
+
     with tarfile.open(archive_path, "w:gz") as archive:
-        archive.add(APP_DIR, arcname="demo_servicenow_es")
+        archive.add(APP_DIR, arcname="demo_servicenow_es", filter=exclude_local)
 
     print(f"Created {archive_path}")
     return archive_path
@@ -84,6 +107,7 @@ def main() -> int:
         regenerate_demo_data(static=args.static)
 
     copy_demo_data()
+    sync_app_assets()
 
     if args.package:
         package_app()

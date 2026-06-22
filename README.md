@@ -17,9 +17,10 @@ This refreshes bundled CSV data and creates:
 
 Copy the app folder or extract the tarball to `$SPLUNK_HOME/etc/apps/`,
 restart Splunk, then open **ServiceNow ES Demo** and follow the **Demo Setup**
-dashboard.
+dashboard. Use **Demo Talk Track** for the full 25–30 minute presenter script.
 
-See [`splunk_app/demo_servicenow_es/README.md`](splunk_app/demo_servicenow_es/README.md).
+See [`splunk_app/demo_servicenow_es/README.md`](splunk_app/demo_servicenow_es/README.md)
+and [`splunk_app/demo_servicenow_es/DEMO_TALK_TRACK.md`](splunk_app/demo_servicenow_es/DEMO_TALK_TRACK.md).
 
 ## Available datasets
 

@@ -65,10 +65,13 @@
           </div>
           <div class="setup-section">
             <h2>5. ES 8.5 Mission Control findings</h2>
+            <p><strong>Primary path:</strong> event-based detections with <strong>Output &gt; Create findings</strong>, or classic ES scheduled alerts with a <strong>Finding / Notable</strong> action (both populate <code>index=notable</code> and Mission Control).</p>
             <ol>
-              <li>Copy the saved searches <code>demo_es85_detection_soc1_template</code> and <code>demo_es85_detection_soc2_template</code> into <strong>Security content &gt; Event-based detections</strong>.</li>
-              <li>In each detection, set <strong>Output &gt; Create findings</strong> with tokens such as <code>$name$</code>, <code>$description$</code>, and <code>$risk_object$</code>.</li>
-              <li>Enable the detections. You do <strong>not</strong> need a Mission Control Incidents adaptive response action in ES 8.5.</li>
+              <li>Copy the saved searches <code>demo_es85_detection_soc1_template</code> and <code>demo_es85_detection_soc2_template</code> into <strong>Security content &gt; Event-based detections</strong>, <em>or</em> create classic ES alerts from the same SPL.</li>
+              <li>For detections: set <strong>Output &gt; Create findings</strong> with tokens such as <code>$name$</code>, <code>$description$</code>, and entity type <strong>system</strong> with <code>$risk_object$</code> (optional <code>$risk_score$</code>, <code>$severity$</code>).</li>
+              <li>For classic alerts: enable <strong>Trigger Actions &gt; Notable</strong> (or Finding action in ES 8.5). Schedule every 5–15 minutes; set earliest to <code>-30d</code> for demo data.</li>
+              <li>Enable the rules and confirm events in <code>index=notable</code>. You do <strong>not</strong> need a Mission Control Incidents adaptive response action in ES 8.5.</li>
+              <li>Run <code>demo_validate_mc_linkage</code> from <strong>Demo Searches</strong> to confirm cross-index linkage.</li>
               <li>In Mission Control, save analyst queue views:
                 <div class="setup-code">"soc_queue=\"SOC 1 Queue\""
 "soc_queue=\"SOC 2 Queue\""</div>
@@ -84,14 +87,18 @@
               <li>Select <strong>SOC 1 Queue</strong> or <strong>SOC 2 Queue</strong> from the dropdown.</li>
               <li>Use the analyst queue table and drill down to linked ServiceNow INCs.</li>
             </ol>
-            <p><code>| makeresults</code> or <code>| collect index=notable</code> alone usually does <strong>not</strong> populate native Mission Control in ES 8.5. The simulator dashboard is the reliable demo substitute.</p>
+            <p><code>| makeresults</code> or <code>| collect index=notable</code> alone usually does <strong>not</strong> populate native Mission Control in ES 8.5. See <code>docs/MISSION_CONTROL_ALTERNATIVES.md</code> in this app.</p>
           </div>
           <div class="setup-section">
-            <h2>6. Open the SOC dashboard</h2>
-            <p>After data is loaded, open <strong>SOC Case Management</strong> from this app navigation menu.</p>
+            <h2>6. Demo talk track &amp; SOC dashboard</h2>
+            <ol>
+              <li>Open <strong>Demo Talk Track</strong> from this app navigation for a 25–30 minute presenter script.</li>
+              <li>Open <strong>SOC Case Management</strong> for ServiceNow queue, Mission Control linkage, and KPI panels.</li>
+              <li>Optional: import <code>docs/soc_case_management_dashboard_studio.json</code> into Dashboard Studio for a richer layout (see <code>dashboards/README.md</code> in the repository).</li>
+            </ol>
           </div>
           <div class="setup-section">
-            <h2>Refresh dates before a live demo</h2>
+            <h2>7. Refresh dates before a live demo</h2>
             <p>From the repository root on a machine with Python 3:</p>
             <div class="setup-code">python3 scripts/build_splunk_demo_app.py
 python3 scripts/build_splunk_demo_app.py --package</div>
