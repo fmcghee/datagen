@@ -26,7 +26,7 @@
         <div class="tt-body">
           <div class="tt-hero">
             <h1>ServiceNow + Splunk ES Mission Control Demo</h1>
-            <p><strong>Duration:</strong> 25–30 min &nbsp;|&nbsp; <strong>Time range:</strong> Last 30 days &nbsp;|&nbsp; <strong>Audience:</strong> SOC, IT leadership, ES evaluators</p>
+            <p><strong>Duration:</strong> 25-30 min | <strong>Time range:</strong> Last 30 days | <strong>Audience:</strong> SOC, IT leadership, ES evaluators</p>
           </div>
 
           <div class="tt-check">Pre-demo: Load data, enable MC alerts/detections, set Last 30 days on all dashboards.</div>

@@ -89,7 +89,8 @@ def package_app() -> Path:
         archive_path.unlink()
 
     def exclude_local(tarinfo: tarfile.TarInfo) -> tarfile.TarInfo | None:
-        if "/local/" in tarinfo.name.replace("\\", "/"):
+        parts = tarinfo.name.replace("\\", "/").split("/")
+        if "local" in parts:
             return None
         return tarinfo
 
