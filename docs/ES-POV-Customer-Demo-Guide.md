@@ -1,491 +1,487 @@
 # Splunk Enterprise Security — Customer Demo Guide
 
-**Purpose:** Step-by-step demo script distilled from the ES POV Lab 201 training lab for customer-facing proof-of-value sessions.
+**Source:** ES POV Lab 201 Final Lab Guide (201 Level)  
+**Purpose:** Customer-facing proof-of-value demo script distilled from the SA training lab  
+**Audience:** Solution Architects, Sales Engineers, SOC demo presenters  
+**Demo customer:** OmniSphere Credit (fictional regional bank — use as your narrative anchor)
 
-**Audience:** Solution Architects, Sales Engineers, and SOC demo presenters.
-
-**Recommended demo length:** 45–60 minutes (core flow) or 90 minutes (with optional deep dives).
-
----
-
-## Important note on source material
-
-The original lab guide lives on Cisco SharePoint:
-
-`ES POV Lab 201 Final Lab Guide.docx`
-
-This document could not be read directly from that SharePoint link in the build environment (authentication required). The steps below are compiled from:
-
-- Standard ES POV Lab 201 demo flows (detection → investigation → threat intel → automation)
-- Splunk ES 8 Mission Control and SOAR integration patterns
-- The `datagen` repo in this workspace for synthetic ServiceNow and security telemetry
-
-**If you have the original `.docx`, upload it to this repo and we can align this guide line-for-line with the official lab.**
+**Recommended length:** 60 minutes (core story) · 90 minutes (with threat intel + UEBA deep dives)
 
 ---
 
-## What you are demonstrating
+## Customer story: OmniSphere Credit
 
-| Capability | Customer value | Where to show it |
+| Attribute | Detail |
+| --- | --- |
+| Industry | Financial Services — regional bank, ~$8B assets |
+| Size | 3,500 employees, 120 branches |
+| SOC | 12-person SOC, 2-tier model, 1 content engineer |
+| Current state | Splunk Enterprise for 3 years; evaluating **ES Premier Cloud** |
+| Adversary focus | **Scattered Spider** — phishing (T1566), persistence (T1543.003), privilege escalation (TA0004) |
+
+### Pain points to reference in the demo
+
+- Analysts drowning in Sentinel alerts with **no risk prioritization**
+- Manual phishing triage (~45 min per alert), inconsistent process
+- No formal threat intel program; feeds used ad hoc
+- Insider risk concerns — privileged users accessing customer data
+- Recent audit findings on triage time and incident documentation
+
+### Technical success criteria (your demo must hit these)
+
+| # | Success criterion | Demo section |
 | --- | --- | --- |
-| Unified TDIR platform | One console for detect, investigate, respond | ES home, Mission Control |
-| Detections / correlation searches | Proactive alerting from normalized data | Incident Review or Analyst Queue |
-| Threat intelligence | Faster triage with IOC context | Threat Intelligence, Intelligence tab |
-| Risk-based prioritization | Focus on what matters most | Asset priority, urgency scoring |
-| Investigations | Structured case management | Mission Control investigations |
-| SOAR automation | Reduce manual toil, consistent response | Automation tab, Run Playbook |
-| ITSM enrichment | Bridge security and operations | ServiceNow demo data (this repo) |
+| 1 | Data ingested, normalized, available in ES dashboards, data models, and detections | §1 Data readiness |
+| 2 | Anomalous user behavior (insider risk) → separate queue for insider threat team | §6 UEBA |
+| 3 | End-to-end investigation with triage and enrichment in ES | §7 Incident management |
+| 4 | EDR alerts → intermediate findings in risk index | §3 Detection engineering |
+| 5 | User-reported email auto-analyzed; only malicious stay in email queue | §8 Automated threat analysis |
+| 6a | Asset and identity enrichment on findings | §2 Assets & identities |
+| 6b | IOC enrichment (URLs, domains, hashes, IPs) via threat feeds | §4–5 Threat intelligence |
 
 ---
 
-## Before the demo
+## Included lab data sources
 
-### 1. Environment checklist
+Reference this table when explaining coverage to the customer.
 
-- [ ] Splunk Enterprise Security installed and licensed
-- [ ] Demo security telemetry indexed (auth, endpoint, DNS, network, web)
-- [ ] CIM-compliant sourcetypes and tags in place
-- [ ] Correlation searches enabled and generating findings/notables
-- [ ] Threat intelligence sources configured (native and/or TIM Cloud)
-- [ ] Splunk SOAR paired with ES (for automation section)
-- [ ] At least one SOAR playbook available (e.g., Threat Intel Investigate)
-- [ ] Pop-up blocker disabled for the demo URL
-- [ ] Browser cache cleared or use incognito mode
-
-### 2. Demo accounts (lab defaults — change for production)
-
-| Role | Username | Password | Use for |
-| --- | --- | --- | --- |
-| Admin | `admin` | per environment | Configuration sections |
-| Analyst | `analyst` or `soc_analyst` | per environment | Investigation workflow |
-
-### 3. Load demo data (this repo)
-
-If you are using the synthetic datasets in this repository:
-
-**Security telemetry (HEC):**
-
-```bash
-export SPLUNK_HEC_URL="https://http-inputs-<stack>.splunkcloud.com/services/collector/event"
-export SPLUNK_HEC_TOKEN="<your-hec-token>"
-
-# Dry-run first
-python3 send_csv_to_splunk.py --dry-run
-
-# Send data
-python3 send_csv_to_splunk.py
-```
-
-**ServiceNow-style data:**
-
-Copy or symlink ServiceNow CSVs into `output/` with the names expected by `send_csv_to_splunk.py`, or ingest JSONL directly per `datasets/servicenow/README.md`.
-
-**Validate ingestion:**
-
-```spl
-index IN (demo_security, demo_servicenow)
-| stats count earliest(_time) as earliest latest(_time) as latest by index sourcetype
-| convert ctime(earliest) ctime(latest)
-| sort index sourcetype
-```
-
-### 4. Suggested demo storyline
-
-Use one coherent narrative across all sections:
-
-> An analyst notices elevated critical findings. Investigation reveals activity tied to expired identities and suspicious external IPs. Threat intelligence confirms known-bad indicators. The analyst opens an investigation, enriches with context, runs a SOAR playbook, and documents resolution — optionally creating a ServiceNow incident for IT operations.
+| Description | Index | Sourcetype |
+| --- | --- | --- |
+| Windows Security | `win` | `XmlWinEventLog:Security` |
+| Windows PowerShell | `win` | `XmlWinEventLog:Microsoft-Windows-PowerShell/Operational` |
+| Windows Sysmon | `win` | `XmlWinEventLog:Microsoft-Windows-Sysmon/Operational` |
+| Windows System / Application | `win` | `WinEventLog:System`, `WinEventLog:Application` |
+| Active Directory | `win` | `XmlWinEventLog:Directory Service` |
+| Okta Identity Cloud | `main` | `OktaIM2:log` |
+| CrowdStrike Device | `main` | `crowdstrike:device:json` |
+| Cisco Secure Endpoint | `cisco` | `cisco:se` |
+| AWS Metadata (BOTSv4) | `botsv4` | `aws:metadata` |
+| Tenable Assets | `main` | `tenable:io:assets` |
 
 ---
 
-## Demo flow overview
+## Demo flow at a glance
 
 ```text
-1. Open ES & Security Posture          (5 min)
-2. Triage a finding                    (8 min)
-3. Show detection / correlation        (7 min)
-4. Threat intelligence enrichment      (8 min)
-5. Risk-based prioritization           (5 min)
-6. Build / extend an investigation     (10 min)
-7. Run SOAR playbook from ES           (10 min)
-8. ServiceNow / ITSM tie-in (optional) (5 min)
-9. Wrap-up & next steps                (2 min)
+OPENING     OmniSphere story + success criteria           (3 min)
+§1          Data exploration & CIM readiness              (5 min)  [pre-demo / optional]
+§2          Exposure Analytics — assets & identities      (8 min)
+§3          Detection engineering & risk index            (10 min)
+§4          Threat Intelligence (TIM Cloud)               (10 min)
+§5          Threat object enrichment on findings          (8 min)
+§6          UEBA — insider threat queue                   (8 min)
+§7          Mission Control — queues, investigations, RP  (10 min)
+§8          Automated email threat analysis               (8 min)
+CLOSE       Outcomes recap + POV next steps                 (3 min)
 ```
 
 ---
 
-## Section 1 — Open ES and show Security Posture (5 min)
+## Opening (3 min)
 
-**Talking point:** ES turns high-volume log data into actionable security signals.
+**Say this:**
 
-### Steps
+> "OmniSphere Credit is a regional bank evaluating ES Premier after struggling with alert noise in their current SIEM. Their CISO wants faster phishing triage, formal threat intel, insider risk visibility, and documented investigations. Today we'll walk through how ES addresses each of those — using their hybrid environment and the Scattered Spider TTPs they're most worried about."
 
-1. Log in to Splunk Web.
-2. Open **Enterprise Security** from the app list.
-3. On the ES home page, point out:
-   - Security Posture
-   - Incident Review / Mission Control
-   - App Configuration
-4. Go to **Security Posture**.
-5. Review **Key Indicators** — totals and 24-hour change.
-6. Walk through the four panels:
-   - Notable Events by Urgency
-   - Notable Events Over Time
-   - Top Notable Events
-   - Top Notable Event Sources
-7. Click the **Critical** bar in Notable Events by Urgency.
-   - This drills into high-priority items (opens Incident Review or filtered queue).
-8. Return to Security Posture.
-9. In **Top Notable Events**, click a high-volume correlation search (e.g., expired user identity or threat intel match).
-   - Show that ES filters directly to that detection type.
-
-### Customer message
-
-> "Your analysts do not search billions of raw events. ES surfaces the small set that needs human attention."
+Show the success criteria table above and tell the customer which items you'll demonstrate live vs. what was pre-staged in the POV environment.
 
 ---
 
-## Section 2 — Triage a finding in Mission Control / Incident Review (8 min)
+## §1 — Data exploration & readiness (5 min)
 
-**Talking point:** Structured triage reduces alert fatigue and creates an audit trail.
+*Use as a pre-demo health check or a brief "we validated your data first" moment.*
 
-> **ES 8+:** Use **Mission Control → Analyst Queue**.  
-> **Earlier ES:** Use **Incident Review**.
-
-### Steps
-
-1. Open **Mission Control** (or **Incident Review**).
-2. Set time range to **Last 24 hours**.
-3. Filter to a compelling scenario:
-   - Search for a suspicious username (lab example: `Hax0r`)
-   - Or filter by correlation search: `Activity from Expired User Identity`
-   - Or filter by security domain: `Endpoint`
-4. Open one finding / notable event.
-5. Show:
-   - **Contributing events** (raw evidence)
-   - **Drill-down search** (pre-built context)
-   - Urgency, severity, security domain
-6. Assign and update status:
-   - Select finding(s) → **Assign to me**
-   - Set status to **In Progress**
-7. Show queue management:
-   - Filter **Status = New** to see unassigned work
-   - Filter **Owner = me** to see personal queue
-8. Resolve one item as a teaching example:
-   - Status → **Resolved**
-   - Comment: e.g., `Firewall rule updated; expired account disabled`
-
-### Optional: Adaptive Response (no SOAR required)
-
-1. On a notable with a `dest` host, open **Actions → Run Adaptive Response Actions**.
-2. Add **Ping** action:
-   - Host field: `dest`
-   - Max results: `4`
-3. Run and show result in Adaptive Responses list.
-
-### Customer message
-
-> "Every action is tracked. New analysts follow the same workflow as senior analysts."
-
----
-
-## Section 3 — Detections and correlation searches (7 min)
-
-**Talking point:** Detections turn patterns in CIM-normalized data into findings.
-
-### Steps
-
-1. Go to **Configure → Content → Content Management**.
-2. Filter **Type = Correlation Search**.
-3. Open a built-in search relevant to your storyline, for example:
-   - `Activity from Expired User Identity`
-   - `Threat - Threat Intelligence Match - Rule`
-   - `Brute Force Access Behavior Detected`
-4. Show the SPL and explain:
-   - Data model / index source
-   - Filter (`where`) conditions
-   - Threshold (`stats`, `where count > N`)
-   - Adaptive response / notable action
-5. Show throttling / grouping (if configured):
-   - "No more than one notable per host every 5 minutes"
-6. Return to **Incident Review / Analyst Queue**.
-7. Confirm findings from that search are appearing.
-
-### Optional: Create a simple custom detection (guided mode)
-
-Use only if time allows and you are on `admin`:
-
-1. **Configure → Content → Content Management → Create New Content → Correlation Search**
-2. Guided mode example — prohibited SSH login:
-   - Data model: `Authentication` → `Successful_Authentication`
-   - Filter: `app = sshd`
-   - Notable title: `Successful SSH connection on host $host$`
-   - Severity: High
-   - Security domain: Access
-3. Save, wait 2–5 minutes, then validate:
+### Step 1: Confirm indexes
 
 ```spl
-index=notable search_name="*SSH*"
-| table _time search_name severity src dest host
-| sort - _time
+| eventcount summarize=false index=*
+| dedup index
+| fields index
+```
+
+### Step 2: Validate CIM / Endpoint data model
+
+```spl
+| tstats count from datamodel=Endpoint by sourcetype index
+```
+
+**Customer message:** Data must be in the right indexes with CIM allowlists applied before detections and dashboards work reliably.
+
+### Step 3: Confirm data model acceleration
+
+- Navigate to **Analytics → Audit → Data Model Audit**
+- Confirm acceleration is on for models you use (Endpoint, Authentication, etc.)
+- Disable acceleration on empty models (e.g., Certificates) to save compute
+
+### Check your work
+
+```spl
+| rest splunk_server=local count=0 /services/data/models
+| search title=Certificates
+| table title acceleration
+```
+
+---
+
+## §2 — Assets, identities & Exposure Analytics (8 min)
+
+**Talking point:** Findings are only useful when you know *who* and *what* is at risk.
+
+### Demo steps
+
+1. **Configure → Exposure Analytics → Start setup** (if not already done).
+2. Show **Entity discovery sources** — Okta, AWS EC2, AD, Linux SSHD, etc.
+3. Explain OmniSphere's identity migration story: static identity list with title-based priority:
+   - Director/VP/C-level → **Critical**
+   - Manager/Supervisor/Lead → **Medium**
+   - Engineer/Developer/Analyst → **High**
+   - Sales/HR → **Low**
+4. Show enrichment rule example — map `user_country` to `user_region` (North America vs Europe after bank acquisition).
+5. Validate identity lookup:
+
+```spl
+| inputlookup identity_lookup_expanded
+| search identity=ghoppy AND category=employee
+| table identity priority bunit category email
+```
+
+6. Tie to findings: show how asset/identity context changes urgency on Mission Control findings.
+
+### Customer message
+
+> "Exposure Analytics continuously discovers users and assets from your existing logs — no separate CMDB project required to get started. Business context like executive priority and region flows into risk scoring automatically."
+
+---
+
+## §3 — Detection engineering & risk index (10 min)
+
+**Talking point:** OmniSphere's biggest pain is noise. ES uses **risk-based alerting** — many detections feed the risk index first; high cumulative risk creates findings.
+
+### Detection lifecycle (30-second framing)
+
+1. Define objectives (Scattered Spider TTPs)
+2. Identify data requirements
+3. Implement, test, validate
+4. Continuous tuning
+5. Report metrics (MTTD, coverage, false positive rate)
+
+### Demo steps — Scattered Spider risk stack
+
+Show these detections enabled with **risk index output only** (not standalone findings):
+
+| Detection | MITRE | Risk fields |
+| --- | --- | --- |
+| Detect Mimikatz With PowerShell Script Block Logging | T1003.001 | dest, user_id |
+| Malicious PowerShell Process With Obfuscation Techniques | T1059.001 | dest |
+| Windows File Download Via PowerShell | T1105 | dest, user |
+| Registry Keys Used For Persistence | T1547.001 | dest, user |
+| FodHelper UAC Bypass | T1548.002 | dest, user |
+| TeamViewer on endpoint (risk index only) | — | per detection |
+
+**Show in UI:**
+
+1. **Security content → Content management** — filter enabled detections.
+2. Explain macro tuning (e.g., `index=win` in PowerShell macro for performance).
+3. Show tuned noisy detections (Windows Group Discovery, System Information Discovery) outputting **intermediate findings** with low risk scores.
+4. **Highlight custom detection:** Cisco Secure Endpoint process creation → risk index with severity-based scores (Low=20, Medium=30, High=40, Critical=50).
+
+### Validate risk accumulation
+
+```spl
+index=risk earliest=-24h
+| stats sum(risk_score) as total_risk by risk_object risk_object_type source
+| sort - total_risk
+| head 10
 ```
 
 ### Customer message
 
-> "You can start with Splunk content and tune it to your environment — or build net-new detections without leaving the ES UI."
+> "Instead of 500 equal-priority alerts, your analysts see risk accumulating on users and systems. A single low-fidelity signal might be ignored; the same host with five signals becomes a finding worth investigating."
 
 ---
 
-## Section 4 — Threat intelligence (8 min)
+## §4 — Threat Intelligence: TIM Cloud (10 min)
 
-**Talking point:** Intelligence enrichment answers "Have we seen this before?" and "How bad is it?"
+**Talking point:** OmniSphere has no formal CTI program. TIM Cloud operationalizes intel inside Mission Control.
 
-### Part A — Review existing intelligence
+### TIM vs TIF — when to explain
 
-1. Go to **Configure → Data Enrichment → Intelligence Downloads** (native TI).
-   - Or **Configure → Threat Intelligence** / TIM Cloud sources (ES 8+).
-2. Show active feeds (e.g., Talos, public blocklists).
-3. Go to **Security Intelligence → Threat Intelligence → Threat Artifacts**.
-4. Filter by an intel source ID.
-5. Open the **Network** tab → **IP Intelligence** panel.
-6. Show matched IPs, descriptions, and weights.
+| Scenario | Recommendation |
+| --- | --- |
+| Small SOC, enrichment only | **TIM only** |
+| Detection + enrichment, some custom feeds | **TIF + TIM** |
+| ES + SOAR with advanced enrichment | **TIF + TIM + SOAR TI integrations** |
+| Just starting, keep it simple | **TIM first** with open-source feeds |
 
-### Part B — Show intelligence on a finding
+**Key difference for customers:**
 
-1. Return to **Mission Control / Incident Review**.
-2. Open a **Threat Intelligence Match** finding.
-3. Show observables (IP, domain, file hash).
-4. On ES 8 with TIM Cloud: open the **Intelligence** tab inside the investigation.
-5. Explain weight and risk contribution.
+- **TIF (ES Native):** IOC matching in log data → generates findings/intermediate findings
+- **TIM (Cloud):** Curated, scored indicators → enriches observables on the **Intelligence tab** in investigations
 
-### Part C — Add a supplemental threat list (admin demo)
+### Demo steps — TIM Cloud sources
 
-1. **Configure → Data Enrichment → Intelligence Downloads → New**
-2. Example values:
-   - Name: `hijacked_ip_addresses`
-   - Type: `hijacks`
-   - URL: your approved threat feed URL
-   - Delimiter: `:`
-   - Fields: `description:$1,ip:$2`
-3. Save and confirm it appears in the list.
-4. Validate in Threat Artifacts after download completes.
+1. **Configure → Threat Intelligence → Data Sources**
+2. Show activated feeds (examples from lab):
+   - Cisco SMA — Indicators & Analysis feeds
+   - Abuse SSL IP Blacklist (open source)
+   - DHS-AIS (industry CERT)
+   - AlienVault OTX (customer's own API key)
+3. Filter by **Status = Activated** — all green.
 
-### Validation SPL
+### Demo steps — Threatlists & safelists
+
+1. **Configure → Threat Intelligence → Threatlists → Add**
+2. Name the threatlist, select up to 10 TIM sources, enable all indicator types.
+3. Set threatlist **Active**.
+4. Show **Safelists** — default excludes `localhost`; bulk-add known-good items (Google DNS, internal RFC1918 ranges) to reduce false enrichment.
+
+### Customer message
+
+> "Your analysts don't paste hashes into VirusTotal. When a finding fires, TIM enriches observables automatically — domain reputation, file analysis, certificate metadata — right in the investigation."
+
+---
+
+## §5 — Threat object enrichment on findings (8 min)
+
+**Talking point:** Enrichment only works when detections extract the right observables.
+
+### Demo scenario 1 — File hash from process events
+
+1. Open detection **ESCU - Dump LSASS via procdump – Rule**.
+2. Explain: `process_name` is a weak IOC; **file_hash (SHA256)** is reliable.
+3. Show added SPL extracting hashes from multi-value `process_hash` field:
 
 ```spl
-index=notable search_name="*Threat Intelligence*"
-| stats count by src dest threat_match_value threat_collection
+| rex field=process_hash max_match=0 "MD5=(?<md5>[^,]+).+SHA256=(?<sha256>[^,]+).+IMPHASH=(?<imphash>[^,]+)"
+| eval file_hash = sha256
+```
+
+4. Show threat object mapping: `file_hash` → type `file_hash`.
+
+### Demo scenario 2 — URL from command line
+
+1. Open **ESCU - BITSAdmin Download File - Rule**.
+2. Show URL extraction:
+
+```spl
+| rex field=process "(?<url>https?://[^\s\"]+)"
+```
+
+3. Add threat object: `url` → type `url`.
+
+### Demo scenario 3 — Cisco Talos adaptive response
+
+1. **Mission Control** → find a BITSAdmin Download File finding.
+2. **Actions → Run Adaptive Response → Intelligence Enrichment with Talos**
+3. Select observable type **URL**, run action.
+4. Show Talos results added to finding notes.
+
+### Customer message
+
+> "We tune detections to emit the observables your threat feeds can act on — hashes, URLs, IPs — so enrichment is automatic, not a manual analyst step."
+
+---
+
+## §6 — UEBA & insider threat queue (8 min)
+
+**Talking point:** OmniSphere needs a **separate queue** for insider risk — not mixed with external threat findings.
+
+### Demo steps
+
+1. **Analytics → UEBA** — show Top Risky Users (e.g., **JDavis**).
+2. Click user → **Findings tab** → detection heatmap.
+3. Explain UEBA detections run to `ba_test` first, then **Turn on in risk index** for production.
+4. Show risk output:
+
+```spl
+index=risk earliest=-24h source="UEBA*"
+| stats count by source risk_object
 | sort - count
 ```
 
-### Customer message
-
-> "Threat intel is not a separate portal — it is embedded in the analyst workflow at triage time."
-
----
-
-## Section 5 — Risk-based prioritization with assets (5 min)
-
-**Talking point:** Not all alerts are equal. Asset context changes urgency.
-
-### Steps
-
-1. In **Incident Review / Analyst Queue**, find endpoint findings for a test asset (lab pattern: `PROD-MFS-*`).
-2. Note current **Urgency** (often Medium when asset priority is Low).
-3. Go to **Configure → Data Enrichment → Asset and Identity Management**.
-4. Open the asset lookup (e.g., `assets.csv` or `simple_asset_lookup`).
-5. Find the demo hosts and change **priority** from `low` to `critical`.
-6. Save and wait 2–3 minutes.
-7. Return to the queue and refresh the same search.
-8. Show urgency is now **Critical**.
+5. Show tuning — entity list + finding exclusion for accepted benign behavior (e.g., JDavis PowerShell pattern).
+6. Return to UEBA dashboard — excluded detection removed from user's heatmap.
+7. Navigate to **Insider Threat** team queue (configured in §7) — show watchlist-based routing.
 
 ### Customer message
 
-> "A malware detection on a PCI database is not the same as one on a QA laptop. ES reflects that automatically."
+> "External attackers and insider risk are different workflows. UEBA behavioral detections route to a dedicated insider threat queue so your IR team isn't buried in credential-stuffing noise."
 
 ---
 
-## Section 6 — Investigations (10 min)
+## §7 — Incident management: queues, investigations, response plans (10 min)
 
-**Talking point:** Investigations preserve context across people, tools, and time.
+**Talking point:** OmniSphere's audit found poor incident documentation. Mission Control fixes that.
 
-### Steps
+### Step 1 — Team queues (Lab 17)
 
-1. In **Incident Review / Analyst Queue**, filter to your storyline correlation search.
-2. Select multiple related findings.
-3. Click **Add Selected to Investigation → Create Investigation**.
-4. Name it (e.g., `Expired Account Activity — Demo`).
-5. Set status **In Progress** and save.
-6. Open the investigation.
-7. Walk through:
-   - **Artifacts** (users, hosts, IPs)
-   - **Explore** on selected artifacts (endpoint, network, identity data)
-   - **Notes** — add an analyst note
-   - **Timeline** of events
-8. Enable **Related Notable Event Livefeed** (bell icon):
-   - Toggle notifications for new related findings
-9. Optional: add a custom workbench tab/panel if your environment has one configured.
+Show two pre-configured queues:
+
+| Queue | Route condition | Purpose |
+| --- | --- | --- |
+| **User-reported Email Analysis** | `incident_origin = IMAP v2 – buttercup-security` | Phishing triage |
+| **Insider Threat** | `watchlist = true` | Insider risk findings |
+
+**Demo:**
+
+1. **Configure → Findings and investigations → Team queues**
+2. Show queue conditions, roles (`ess_analyst`), 7-day retention.
+3. Open **User-reported Email Analysis** queue.
+4. Show custom table view **Finding Triage** with threat analysis fields.
+5. Filter: `threat analysis status = completed`.
+
+### Step 2 — Investigation types (Lab 18)
+
+1. **Configure → Findings and investigations → Investigation types**
+2. Show types: `email`, `insider_threat`
+3. Explain custom fields and response plan association per type.
+
+### Step 3 — Response plans (Lab 19)
+
+1. **Security content → Response plans**
+2. Show **Workflow Email Phishing Response** plan (AI-imported from SOP).
+3. Show plan assigned to `email` investigation type.
+4. Start an investigation on an email finding → walk through response plan tasks.
+
+### Step 4 — End-to-end investigation workflow
+
+1. **Mission Control → Analyst Queue** — select a finding.
+2. **Assign to me** → status **In Progress**.
+3. **Start investigation** — review events, observables, Intelligence tab.
+4. Add note, run adaptive response or playbook.
+5. Update status through resolution.
 
 ### Customer message
 
-> "Handoffs between shifts and tiers do not lose context. Everything lives in one investigation record."
+> "Every investigation has a type, a response plan, and a team queue. Your SOC runs the same phishing playbook every time — and leadership can audit it."
 
 ---
 
-## Section 7 — SOAR playbooks from ES (10 min)
+## §8 — Automated threat analysis (email) (8 min)
 
-**Talking point:** Automate enrichment and response without leaving the SIEM.
+**Talking point:** Cut phishing triage from 45 minutes to minutes with automated analysis in the analyst queue.
 
-**Prerequisite:** ES paired with Splunk SOAR (Cloud or on-prem).
+### How it works
 
-### Option A — Run playbook from Analyst Queue (fastest for demos)
+- **Third-party findings** ingest SOAR app events directly as ES findings.
+- **Automated Threat Analysis** (ES 8.5+) uses SAA engines (email, web, static analysis) for verdict and score.
+- Only emails deemed malicious remain in the email queue after analysis completes.
 
-1. Open **Mission Control → Analyst Queue**.
-2. Select a finding or investigation.
-3. Click **Run playbook**.
-4. Choose a playbook, for example:
-   - **Threat Intel Investigate** — enriches indicators and prompts for tagging
-   - **Internal Host WinRM Investigate** — endpoint collection (if connector configured)
-5. Click **Run playbook**.
-6. Open the finding/investigation details.
-7. In **Automation history**, show:
-   - Playbook status
-   - Action outputs
-   - Analyst prompts (if any)
+### Demo steps (Lab 20)
 
-### Option B — Run playbook from inside an investigation
+1. **Configure → Splunk SOAR → Apps** — filter **Support ES ingestion**.
+2. Show **IMAP v2** app configured with `buttercup-security` asset (lab-provided; do not share credentials in customer docs).
+3. Explain ingest settings:
+   - Investigation type: `email`
+   - Security domain: network
+   - Urgency: medium
+4. **Poll Now** (max 5 objects) — findings appear in **User-reported Email Analysis** queue.
+5. Click finding → review **threat analysis** in side panel (verdict, score).
+6. **Start Investigation → View complete analysis** — full SAA forensics.
 
-1. Open an investigation from the Analyst Queue.
-2. Select the **Automation** tab.
-3. Click **Run playbook** or **Run Action**.
-4. Select app/action (e.g., VirusTotal, ServiceNow, firewall connector).
-5. Execute and review results in Automation history.
+### Validate
 
-### Option C — Show automation rules (admin / architecture audiences)
-
-1. In Splunk SOAR, open **Automation Rules** (or ES dispatch configuration).
-2. Show how a specific detection can auto-trigger a playbook.
-3. Explain analyst visibility and override controls.
-
-### Suggested narration while playbook runs
-
-> "While the analyst reviews the investigation, SOAR is enriching indicators, querying threat feeds, and optionally opening tickets — in parallel, from one click."
-
-### Customer message
-
-> "Tier-1 analysts get Tier-3 enrichment automatically. Your team scales without linear headcount growth."
-
----
-
-## Section 8 — ServiceNow / ITSM integration (optional, 5 min)
-
-**Talking point:** Security and IT operations share one record of truth.
-
-This repo includes synthetic ServiceNow data linked to Splunk notables via `u_splunk_notable_event_id`.
-
-### Load demo ServiceNow data
-
-```bash
-# Copy ServiceNow CSVs to output/ with expected names, then:
-python3 send_csv_to_splunk.py
+```spl
+index=notable search_name="Manual Finding Event - Rule"
+| stats count
 ```
 
-Or ingest JSONL per `datasets/servicenow/README.md`.
+### Customer message
 
-### Demo SPL — incidents linked to ES notables
+> "Analysts used to spend 45 minutes per reported phish. Now the platform analyzes the email automatically — your team only investigates what SAA flags as malicious."
+
+---
+
+## Closing — outcomes & POV next steps (3 min)
+
+Recap against OmniSphere success criteria:
+
+| Criterion | Demonstrated |
+| --- | --- |
+| Data optimization | CIM models, lab data sources indexed |
+| Anomaly / insider detection | UEBA → Insider Threat queue |
+| Incident management | Investigation + response plan + documentation |
+| EDR → risk index | Cisco Secure Endpoint custom detection |
+| Email triage automation | IMAP ingest + Automated Threat Analysis |
+| Asset/identity enrichment | Exposure Analytics |
+| Threat intel enrichment | TIM Cloud + threat objects + Talos |
+
+### Suggested POV next steps for the customer
+
+1. Map OmniSphere's top 5 data sources to CIM (use their CrowdStrike, Okta, Cisco SE, Windows logs).
+2. Enable Scattered Spider-aligned detections with risk index first; tune for 2 weeks before promoting to findings.
+3. Activate TIM Cloud with customer's OTX/API keys; build one threatlist.
+4. Stand up two team queues matching their SOC structure (email + insider or cloud + endpoint).
+5. Import one response plan from their existing phishing SOP.
+6. Define POV success metrics: MTTD, phishing triage time, % findings with TI enrichment, analyst hours saved.
+
+---
+
+## Appendix A — Pre-demo technical checklist (SA only)
+
+Run these before the customer joins:
+
+- [ ] CIM allowlists set for Endpoint (and other used models)
+- [ ] Data model acceleration verified
+- [ ] Exposure Analytics entity sources enabled
+- [ ] Risk-index detections enabled (Scattered Spider stack)
+- [ ] Cisco Secure Endpoint detection + field aliases configured
+- [ ] TIM Cloud sources activated; threatlist active
+- [ ] Threat object fields on LSASS + BITSAdmin detections
+- [ ] UEBA detections on in risk index
+- [ ] Team queues: Email Analysis + Insider Threat
+- [ ] Investigation types + email response plan published
+- [ ] IMAP v2 polled; email findings in queue
+- [ ] Pop-up blocker disabled
+
+### Enabled detection count check
+
+```spl
+| rest splunk_server=local count=0 /servicesNS/-/-/saved/searches
+| where match('action.correlationsearch.enabled', "1|[Tt]|[Tt][Rr][Uu][Ee]")
+| where disabled=0
+| stats count
+```
+
+*Lab expects 14+ enabled detections when fully configured.*
+
+---
+
+## Appendix B — Optional deep dives (not in 60-min core demo)
+
+| Topic | Lab reference | When to use |
+| --- | --- | --- |
+| Custom TIF TAXII feeds | Labs 14–15, cabby/curl optional | Mature CTI team, custom feed requirements |
+| TIF + TIM dual configuration | Configuring Custom Sources | Customer needs IOC matching *and* enrichment |
+| Detection tuning / exclusions | Labs 10–11 | Technical deep-dive with content engineer |
+| Static identity CSV import | Lab 5 | Customer with identity migration story |
+| ServiceNow integration | `datasets/servicenow/` in this repo | ITSM handoff story |
+
+### ServiceNow demo data (this repo)
+
+```bash
+python3 send_csv_to_splunk.py   # after copying SNOW CSVs to output/
+```
 
 ```spl
 index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
-| table _time number priority severity status dest business_service u_splunk_notable_event_id u_splunk_correlation_search
-| sort - _time
-```
-
-### Demo SPL — risk context from CMDB
-
-```spl
-index=demo_servicenow sourcetype=demo:snow:cmdb_ci (u_pci_scope=true OR u_contains_pii=true)
-| table dest dest_ip business_service environment u_criticality u_edr_status owner
-```
-
-### Show in the demo
-
-1. Open a security incident with `u_splunk_notable_event_id` populated.
-2. Show CMDB fields: `u_pci_scope`, `u_criticality`, `business_service`.
-3. Explain bidirectional flow:
-   - ES finding → ServiceNow incident (SOAR playbook)
-   - CMDB context → ES urgency / prioritization
-
----
-
-## Section 9 — Wrap-up talking points (2 min)
-
-Close with outcomes, not features:
-
-1. **Detect** — Correlation searches on CIM data with MITRE-aligned content.
-2. **Enrich** — Threat intelligence and asset/identity context at triage.
-3. **Investigate** — Mission Control investigations with full audit trail.
-4. **Respond** — SOAR playbooks and adaptive actions from the same console.
-5. **Operate** — ITSM integration for handoff to IT and change management.
-
-### Suggested next steps for the customer
-
-- Identify 3–5 high-priority use cases (phishing, identity, endpoint, cloud, fraud)
-- Map data sources to CIM models
-- Run a 2–4 week POV with their own data
-- Define success metrics: MTTD, MTTR, analyst hours saved, coverage gaps closed
-
----
-
-## Quick-reference validation searches
-
-```spl
-# All notables in last 24h
-index=notable earliest=-24h
-| stats count by search_name severity urgency
-| sort - count
-
-# Threat intel matches
-index=notable search_name="*Threat Intelligence*"
-| table _time src dest user threat_match_value
-
-# Risk modifiers
-| `get_risk_correlation`
-| stats sum(risk_score) as total_risk by risk_object risk_object_type
-| sort - total_risk
-
-# Security telemetry by sourcetype
-index=demo_security
-| stats count by sourcetype
+| table _time number priority severity status u_splunk_notable_event_id u_splunk_correlation_search
 ```
 
 ---
 
-## Troubleshooting during live demos
+## Appendix C — Map to official lab modules
 
-| Issue | Quick fix |
+| Official lab | Customer demo section |
 | --- | --- |
-| No findings in queue | Widen time range; confirm correlation searches enabled |
-| Playbook button missing | Verify ES–SOAR pairing and user permissions |
-| Threat intel empty | Check Intelligence Downloads / TIM Cloud source status |
-| Low urgency on important assets | Update asset lookup priority; wait 2–3 min |
-| Pop-up blocked for drill-down | Disable pop-up blocker for demo host |
-| Search timeout | Narrow time range; use `tstats` / accelerated data models |
-
----
-
-## Appendix — Map to ES POV Lab 201 modules
-
-Use this table to cross-reference the original training lab when you have access to the SharePoint document:
-
-| Demo section | Typical POV lab topic |
-| --- | --- |
-| Section 1 | ES overview, Security Posture dashboard |
-| Section 2 | Incident Review / Mission Control triage |
-| Section 3 | Correlation searches, detection builder |
-| Section 4 | Threat Intelligence Framework / TIM Cloud |
-| Section 5 | Asset and Identity Framework, risk scoring |
-| Section 6 | Investigations, workbench, livefeed |
-| Section 7 | SOAR playbooks, adaptive response, automation rules |
-| Section 8 | ITSM / ServiceNow integration |
+| Labs 1–3: Data exploration | §1 |
+| Labs 4–7: Exposure Analytics | §2 |
+| Labs 8–11: Detection engineering | §3 |
+| Labs 12–14: TIM Cloud | §4 |
+| Lab 14 enrichment + Lab 15 Talos | §5 |
+| Lab 16: UEBA | §6 |
+| Labs 17–19: Queues, investigation types, response plans | §7 |
+| Lab 20: IMAP / automated threat analysis | §8 |
 
 ---
 
@@ -493,4 +489,5 @@ Use this table to cross-reference the original training lab when you have access
 
 | Version | Date | Notes |
 | --- | --- | --- |
-| 1.0 | 2026-07-12 | Initial customer demo guide compiled from ES POV Lab patterns and datagen repo |
+| 1.0 | 2026-07-12 | Initial guide from ES POV patterns + datagen repo |
+| 2.0 | 2026-07-12 | Aligned to ES POV Lab 201 Final Lab Guide PDF; OmniSphere Credit storyline |
