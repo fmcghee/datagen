@@ -7,6 +7,8 @@
 
 **Recommended length:** 60 minutes (core story) · 90 minutes (with threat intel + UEBA deep dives)
 
+**Obsidian vault:** `obsidian/ES-POV-Customer-Demo/` — linked notes with YAML frontmatter. Start at `ES POV Customer Demo Guide.md`.
+
 ---
 
 ## Customer story: OmniSphere Credit
