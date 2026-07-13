@@ -1,51 +1,39 @@
 # ES POV Customer Demo — Obsidian Vault
 
-Import this folder into your Obsidian vault.
+## Fix: Obsidian Git "invalid git repo"
 
-## Obsidian Git: "invalid git repo" fix
-
-The **Obsidian Git** plugin requires a `.git` folder at the **vault root**. This notes folder is only a subdirectory of the `datagen` repo — it does **not** have its own `.git`.
-
-If you opened **only** `ES-POV-Customer-Demo` as your vault, Git will fail. Use one of these fixes:
-
-### Recommended — open the full repo as vault
+Open this folder **only works with Obsidian Git** if you clone the dedicated vault branch:
 
 ```bash
-git clone https://github.com/fmcghee/datagen.git
-cd datagen
-git checkout cursor/es-pov-customer-demo-guide-15fc   # or main after PR merge
+git clone --branch obsidian-vault --single-branch https://github.com/fmcghee/datagen.git es-pov-customer-demo
 ```
 
-In Obsidian: **Open folder as vault** → select the cloned **`datagen`** folder (repo root, where `.git` lives).
-
-Your notes are at: `obsidian/ES-POV-Customer-Demo/`  
-Start at: `obsidian/ES-POV-Customer-Demo/ES POV Customer Demo Guide.md`
-
-Obsidian Git will sync the whole repo (including `docs/`, `datasets/`, etc.).
-
-### Alternative — copy into an existing vault (no Git on this subfolder)
-
-1. Copy `ES-POV-Customer-Demo` into your existing vault.
-2. Disable **Obsidian Git** for that vault, or ignore this path — the subfolder is not a git root.
-
-### Alternative — standalone git for notes only
-
-Only if you want this folder as its own repo (not tied to `datagen` PRs):
+Or from the full repo:
 
 ```bash
-cd ES-POV-Customer-Demo
-git init
-git add .
-git commit -m "Initial ES POV demo vault"
+bash scripts/setup-obsidian-vault.sh ~/Obsidian/es-pov-customer-demo
 ```
 
-You would manage remotes/commits separately from `fmcghee/datagen`.
+Then in Obsidian: **Open folder as vault** → select the cloned folder.
 
-## Quick import (no Git)
+`.git` is at the vault root — Obsidian Git will work.
 
-1. Copy the `ES-POV-Customer-Demo` folder into your vault root (or open it as a vault).
-2. Start at **[[ES POV Customer Demo Guide]]** (map of content).
-3. Use the graph view to see links between demo sections.
+---
+
+## If you already have a broken vault folder
+
+1. Note any local edits you made.
+2. Remove or rename the old folder.
+3. Re-clone with the command above.
+4. Re-apply local edits if needed.
+
+---
+
+## Quick start (no Git)
+
+Copy this folder into an existing vault and start at **[[ES POV Customer Demo Guide]]**.
+
+Obsidian Git will not work unless `.git` is at your vault root — use the clone method above instead.
 
 ## Structure
 
@@ -68,4 +56,4 @@ You would manage remotes/commits separately from `fmcghee/datagen`.
 
 ## Tags
 
-Notes are tagged for filtering: `#splunk/es`, `#splunk/demo`, `#splunk/pov`, `#splunk/lab201`
+`#splunk/es` `#splunk/demo` `#splunk/pov` `#splunk/lab201`

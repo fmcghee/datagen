@@ -7,7 +7,15 @@
 
 **Recommended length:** 60 minutes (core story) · 90 minutes (with threat intel + UEBA deep dives)
 
-**Obsidian vault:** `obsidian/ES-POV-Customer-Demo/` — linked notes with YAML frontmatter. Start at `ES POV Customer Demo Guide.md`.
+**Obsidian vault (Obsidian Git compatible):**
+
+```bash
+git clone --branch obsidian-vault --single-branch https://github.com/fmcghee/datagen.git es-pov-customer-demo
+```
+
+Open `es-pov-customer-demo` in Obsidian. Or run `bash scripts/setup-obsidian-vault.sh`.
+
+Monorepo copy (no git at vault root): `obsidian/ES-POV-Customer-Demo/`
 
 ---
 
