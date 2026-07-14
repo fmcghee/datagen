@@ -31,7 +31,13 @@
           </div>
 
           <div class="load-section">
-            <h2>Step 2 — Click each link, then Run (green arrow)</h2>
+            <h2>Step 2 — Load everything (one click)</h2>
+            <p>Open this saved search and click <strong>Run</strong> once. It loads ServiceNow + ES/Mission Control data.</p>
+            <a class="load-btn" style="background:#86BC25;color:#000000;" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_all_data&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">LOAD ALL DEMO DATA</a>
+          </div>
+
+          <div class="load-section">
+            <h2>Step 3 — Or load datasets individually</h2>
             <p>Each link opens a saved search. Click the green <strong>Run</strong> button once per link.</p>
             <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_servicenow_incidents&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">1. ServiceNow Incidents</a>
             <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_servicenow_changes&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">2. ServiceNow Changes</a>
@@ -42,7 +48,7 @@
           </div>
 
           <div class="load-section">
-            <h2>Step 3 — Validate</h2>
+            <h2>Step 4 — Validate</h2>
             <div class="load-code">index=demo_servicenow OR index=demo_security | stats count by index sourcetype</div>
             <p>Then open <a href="/app/demo_servicenow_es/soc_case_management">SOC Case Management</a> or continue <a href="/app/demo_servicenow_es/demo_setup">Demo Setup</a>.</p>
           </div>

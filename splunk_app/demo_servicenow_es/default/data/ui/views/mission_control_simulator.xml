@@ -12,7 +12,7 @@
     <input type="time" token="time_range" searchWhenChanged="true">
       <label>Time Range</label>
       <default>
-        <earliest>-30d@d</earliest>
+        <earliest>-365d@d</earliest>
         <latest>now</latest>
       </default>
     </input>

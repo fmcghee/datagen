@@ -5,7 +5,7 @@
     <input type="time" token="time_range" searchWhenChanged="true">
       <label>Time Range</label>
       <default>
-        <earliest>-30d@d</earliest>
+        <earliest>-365d@d</earliest>
         <latest>now</latest>
       </default>
     </input>
@@ -42,7 +42,7 @@
       <single>
         <title>Open Cases</title>
         <search>
-          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident state!="Closed"
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident active=true
 | stats count as value]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
@@ -57,13 +57,12 @@
       <single>
         <title>Mission Control Findings</title>
         <search>
-          <query><![CDATA[index=notable
-| search rule_name="*Mission Control*" OR rule_name="*SOC*Queue*" OR title="INC*"
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
 | stats count as value]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
         </search>
-        <option name="underLabel">Findings in index=notable</option>
+        <option name="underLabel">MC queue items (demo:es:incident)</option>
       </single>
     </panel>
     <panel>
@@ -82,7 +81,7 @@
       <single>
         <title>High / Critical Open</title>
         <search>
-          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident priority IN ("1 - Critical","2 - High") state!="Closed"
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident priority IN ("1 - Critical","2 - High") active=true
 | stats count as value]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
@@ -97,7 +96,7 @@
       <single>
         <title>Avg Open Age Hours</title>
         <search>
-          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident state!="Closed"
+          <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident active=true
 | eval age_hours=(now()-_time)/3600
 | stats avg(age_hours) as value
 | eval value=round(value,1)]]></query>
@@ -127,22 +126,14 @@
         <title>Mission Control Findings Linked to ServiceNow INCs</title>
         <search>
           <query><![CDATA[index=demo_security sourcetype=demo:es:incident
-| eval service_now_inc=snow_incident_number, es_source_title=name
-| table _time soc_queue notable_id service_now_inc es_source_title urgency severity status_name assignee risk_object cmdb_ci business_service correlation_search
-| join type=left notable_id [
-    search index=notable
-    | search rule_name="*Mission Control*" OR rule_name="*SOC*Queue*" OR title="INC*"
-    | eval notable_id=coalesce(notable_id, event_id)
-    | stats latest(_time) AS mc_finding_time latest(title) AS mc_finding_title latest(rule_name) AS detection_name latest(urgency) AS mc_urgency latest(severity) AS mc_severity latest(owner) AS mc_owner latest(status) AS mc_status latest(snow_incident_number) AS mc_snow_inc BY notable_id
-]
-| eval service_now_inc=coalesce(service_now_inc, mc_snow_inc)
+| eval service_now_inc=snow_incident_number, mc_finding_title=name, detection_name=correlation_search, mc_urgency=urgency, mc_severity=severity, mc_owner=assignee, mc_status=status_name
 | join type=left service_now_inc [
-    search index=demo_servicenow sourcetype=demo:snow:incident u_splunk_notable_event_id=*
+    search index=demo_servicenow sourcetype=demo:snow:incident
     | eval service_now_inc=number
     | stats latest(priority) AS inc_priority latest(state) AS inc_state latest(assigned_to) AS inc_assignee latest(short_description) AS inc_summary BY service_now_inc
 ]
-| eval linkage=case(isnotnull(mc_finding_title) AND isnotnull(inc_state), "Mission Control + ServiceNow", isnotnull(mc_finding_title), "Mission Control only", isnotnull(inc_state), "ServiceNow only", 1=1, "Source only")
-| table _time soc_queue service_now_inc notable_id es_source_title mc_finding_title detection_name mc_urgency mc_severity mc_owner mc_status inc_priority inc_state inc_assignee cmdb_ci business_service linkage
+| eval linkage=case(isnotnull(inc_state) AND isnotnull(mc_finding_title), "Mission Control + ServiceNow", isnotnull(inc_state), "ServiceNow only", isnotnull(mc_finding_title), "MC queue item", 1=1, "Unlinked")
+| table _time soc_queue service_now_inc notable_id mc_finding_title detection_name mc_urgency mc_severity mc_owner mc_status inc_priority inc_state inc_assignee risk_object cmdb_ci business_service linkage
 | sort soc_queue - _time]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
@@ -158,12 +149,12 @@
   <row>
     <panel>
       <table>
-        <title>Mission Control Notable Events (index=notable)</title>
+        <title>Mission Control Queue Items</title>
         <search>
-          <query><![CDATA[index=notable
-| search rule_name="*Mission Control*" OR rule_name="*SOC*Queue*" OR title="INC*"
-| eval notable_id=coalesce(notable_id, event_id), service_now_inc=coalesce(snow_incident_number, mvindex(split(title," "),0))
-| table _time rule_name title urgency severity owner status service_now_inc notable_id soc_queue risk_object cmdb_ci business_service
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| eval service_now_inc=snow_incident_number
+| table _time name correlation_search urgency severity assignee status_name service_now_inc notable_id soc_queue risk_object cmdb_ci business_service
+| rename name AS title, correlation_search AS rule_name, assignee AS owner, status_name AS status
 | sort - _time]]></query>
           <earliest>$time_range.earliest$</earliest>
           <latest>$time_range.latest$</latest>
@@ -191,7 +182,7 @@
         <title>Open SOC Queue</title>
         <search>
           <query><![CDATA[index=demo_servicenow sourcetype=demo:snow:incident
-| search state!="Closed"
+| search active=true
 | eval age_hours=round((now()-_time)/3600,1)
 | table _time number priority state assigned_to cmdb_ci business_service age_hours short_description
 | sort priority - _time]]></query>
