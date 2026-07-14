@@ -14,6 +14,7 @@ This refreshes bundled CSV data and creates:
 
 - App folder: `splunk_app/demo_servicenow_es/`
 - Install package: `dist/demo_servicenow_es.tar.gz`
+- **Upload copy:** `upload/demo_servicenow_es.tar.gz` (same package, easy to find/download)
 
 Copy the app folder or extract the tarball to `$SPLUNK_HOME/etc/apps/`,
 restart Splunk, then open **ServiceNow ES Demo** and follow the **Demo Setup**
