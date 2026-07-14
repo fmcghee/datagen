@@ -39,6 +39,39 @@ DATASETS = (
     "es_incidents.csv",
 )
 
+DATASET_META = {
+    "servicenow_incidents.csv": {
+        "index": "demo_servicenow",
+        "sourcetype": "demo:snow:incident",
+        "source": "demo_servicenow_es:servicenow_incidents.csv",
+    },
+    "servicenow_changes.csv": {
+        "index": "demo_servicenow",
+        "sourcetype": "demo:snow:change",
+        "source": "demo_servicenow_es:servicenow_changes.csv",
+    },
+    "servicenow_cmdb.csv": {
+        "index": "demo_servicenow",
+        "sourcetype": "demo:snow:cmdb_ci",
+        "source": "demo_servicenow_es:servicenow_cmdb.csv",
+    },
+    "servicenow_users.csv": {
+        "index": "demo_servicenow",
+        "sourcetype": "demo:snow:user",
+        "source": "demo_servicenow_es:servicenow_users.csv",
+    },
+    "servicenow_task_ci.csv": {
+        "index": "demo_servicenow",
+        "sourcetype": "demo:snow:task_ci",
+        "source": "demo_servicenow_es:servicenow_task_ci.csv",
+    },
+    "es_incidents.csv": {
+        "index": "demo_security",
+        "sourcetype": "demo:es:incident",
+        "source": "demo_servicenow_es:es_incidents.csv",
+    },
+}
+
 
 def parse_timestamp(value: str) -> float:
     timestamp = value.strip()
@@ -93,13 +126,17 @@ def mark_loaded(csv_name: str, count: int) -> None:
     marker.write_text(f"events={count}\n", encoding="utf-8")
 
 
-def emit_row(row: dict[str, str]) -> None:
+def emit_row(row: dict[str, str], meta: dict[str, str] | None = None) -> None:
     cleaned = {key: value for key, value in row.items() if key and value is not None}
     cleaned["_time"] = parse_event_time(row)
+    if meta:
+        cleaned["_MetaData:Index"] = meta["index"]
+        cleaned["_MetaData:Sourcetype"] = meta["sourcetype"]
+        cleaned["_MetaData:Source"] = meta["source"]
     sys.stdout.write(json.dumps(cleaned, separators=(",", ":")) + "\n")
 
 
-def index_csv(path: Path, force: bool) -> int:
+def index_csv(path: Path, force: bool, use_event_metadata: bool = False) -> int:
     if not path.is_file():
         sys.stderr.write(f"Missing CSV file: {path}\n")
         return 0
@@ -109,12 +146,13 @@ def index_csv(path: Path, force: bool) -> int:
         return 0
 
     count = 0
+    meta = DATASET_META.get(path.name) if use_event_metadata else None
     with path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
         if not reader.fieldnames:
             raise ValueError(f"{path} does not contain a CSV header")
         for row in reader:
-            emit_row(row)
+            emit_row(row, meta)
             count += 1
 
     mark_loaded(path.name, count)
@@ -130,7 +168,7 @@ def main() -> int:
     if not args or args[0] == "--all":
         total = 0
         for csv_name in DATASETS:
-            total += index_csv(data_dir / csv_name, force)
+            total += index_csv(data_dir / csv_name, force, use_event_metadata=True)
         return 0 if total >= 0 else 1
 
     csv_name = args[0]

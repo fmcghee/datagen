@@ -50,8 +50,18 @@ See `default/indexes.conf.example`.
 ## Load demo data
 
 Enable each scripted input under **Settings > Data inputs > Scripts** once, then
-disable it again to prevent duplicate events. Marker files in `local/` track
-which CSV files were already loaded.
+disable it again to prevent duplicate events. **Turn on "Show disabled inputs"**
+if the list looks empty. Filter for `index_demo_csv` or `demo_servicenow_es`.
+
+**Recommended:** enable `index_demo_csv.py --all` once (loads all CSV files).
+
+If scripted inputs do not appear after a Splunk restart, run on the search head:
+
+```bash
+$SPLUNK_HOME/bin/splunk cmd python $SPLUNK_HOME/etc/apps/demo_servicenow_es/bin/index_demo_csv.py --all --force
+```
+
+Marker files in `local/` track which CSV files were already loaded.
 
 ## ES 8.5 Mission Control
 

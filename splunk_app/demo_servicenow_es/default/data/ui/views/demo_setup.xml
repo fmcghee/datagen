@@ -37,11 +37,16 @@
           </div>
           <div class="setup-section">
             <h2>3. Load bundled demo data</h2>
-            <div class="setup-note">Enable each scripted input once, wait for it to run, then disable it again to avoid duplicate events.</div>
+            <div class="setup-note">Inputs are disabled by default. You must enable them once, wait for a run, then disable again.</div>
+            <p><strong>Where to find them:</strong> The inputs are <em>scripted inputs</em>, not a top-level app name in Data Inputs.</p>
             <ol>
-              <li>Open <strong>Settings &gt; Data inputs &gt; Files &amp; directories &gt; Scripts</strong>.</li>
-              <li>Filter for <code>demo_servicenow_es</code>.</li>
-              <li>Enable these inputs one at a time:
+              <li><strong>Restart Splunk</strong> after installing the app (required for inputs.conf to load).</li>
+              <li>Go to <strong>Settings &gt; Data inputs</strong>.</li>
+              <li>Click <strong>Scripts</strong> (under Local inputs or Files &amp; directories — not Monitor, HEC, or S3).</li>
+              <li>Turn on <strong>Show disabled inputs</strong> if you do not see any rows.</li>
+              <li>Search or filter for <code>index_demo_csv</code> or <code>demo_servicenow_es</code>.</li>
+              <li><strong>Recommended:</strong> Enable <code>index_demo_csv.py --all</code> once (loads every CSV), wait 1–2 minutes, then disable it.</li>
+              <li>Or enable each per-file input one at a time:
                 <ul>
                   <li><code>index_demo_csv.py servicenow_incidents.csv</code></li>
                   <li><code>index_demo_csv.py servicenow_changes.csv</code></li>
@@ -51,9 +56,21 @@
                   <li><code>index_demo_csv.py es_incidents.csv</code></li>
                 </ul>
               </li>
-              <li>After each input runs successfully, disable it again.</li>
             </ol>
             <p>To reload demo data later, delete marker files under <code>local/loaded_*.marker</code> in this app or run the script with <code>--force</code> from the CLI.</p>
+          </div>
+          <div class="setup-section">
+            <h2>3b. Still not seeing scripted inputs?</h2>
+            <ol>
+              <li>Confirm the app folder is <code>$SPLUNK_HOME/etc/apps/demo_servicenow_es</code> and the app is <strong>Enabled</strong> in Manage Apps.</li>
+              <li>Confirm you are on the <strong>search head</strong> (scripted inputs do not appear on indexers).</li>
+              <li>Check <code>$SPLUNK_HOME/etc/apps/demo_servicenow_es/default/inputs.conf</code> exists on the instance.</li>
+              <li>Run this CLI one-shot load on the search head (indexes must exist first):
+                <div class="setup-code">$SPLUNK_HOME/bin/splunk cmd python $SPLUNK_HOME/etc/apps/demo_servicenow_es/bin/index_demo_csv.py --all --force</div>
+              </li>
+              <li>Validate with: <code>index=demo_servicenow OR index=demo_security | stats count by index sourcetype</code></li>
+              <li>On Splunk Cloud: scripted inputs require search-head admin access. If Scripts is empty, use the CLI command above via SSH/support, or ingest with HEC using <code>send_csv_to_splunk.py</code> from the repository.</li>
+            </ol>
           </div>
           <div class="setup-section">
             <h2>4. Validate indexed data</h2>
