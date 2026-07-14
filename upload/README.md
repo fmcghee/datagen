@@ -2,6 +2,10 @@
 
 Copy or download from this folder to install the demo app.
 
+**Package built:** 2026-07-14 (rolling demo timestamps; data lands in recent time ranges)
+
+**Includes:** Load Demo Data saved searches, SOC Case Management dashboard, Mission Control Simulator, Simulate Mission Control Alerts (`demo_mc_alert_soc1` / `demo_mc_alert_soc2`), AppInspect-clean conf (no `local/`), Splunk Cloud lookup-based data load path.
+
 ## Recommended (single file upload)
 
 | File | Use |

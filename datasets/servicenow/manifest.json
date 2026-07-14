@@ -1,5 +1,5 @@
 {
-  "base_time": "2026-07-14T22:00:00Z",
+  "base_time": "2026-07-14T23:00:00Z",
   "cim_mappings": {
     "changes": "Change.All_Changes",
     "cmdb_ci": "Inventory.All_Inventory",
@@ -10,7 +10,7 @@
   },
   "cim_note": "Rows include raw ServiceNow fields plus Splunk CIM-friendly fields. Splunk eventtype/tag configuration is provided under splunk_app/TA-synthetic-servicenow/default.",
   "date_mode": "rolling",
-  "generated_at": "2026-07-14T22:00:00Z",
+  "generated_at": "2026-07-14T23:00:00Z",
   "name": "Synthetic ServiceNow data for Splunk Enterprise Security demos",
   "privacy_note": "All names, emails, systems, IP addresses, and records are synthetic demo data.",
   "seed": 8675309,
