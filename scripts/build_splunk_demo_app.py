@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "splunk_app" / "demo_servicenow_es"
 DATA_DIR = APP_DIR / "bin" / "data"
+LOOKUPS_DIR = APP_DIR / "lookups"
 DOCS_DIR = APP_DIR / "docs"
 VIEWS_DIR = APP_DIR / "default" / "data" / "ui" / "views"
 DIST_DIR = ROOT / "dist"
@@ -65,11 +66,14 @@ def regenerate_demo_data(static: bool) -> None:
 
 def copy_demo_data() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    LOOKUPS_DIR.mkdir(parents=True, exist_ok=True)
     for target_name, source_path in CSV_MAPPINGS.items():
         if not source_path.is_file():
             raise FileNotFoundError(f"Missing demo data file: {source_path}")
         shutil.copy2(source_path, DATA_DIR / target_name)
+        shutil.copy2(source_path, LOOKUPS_DIR / target_name)
         print(f"Copied {source_path.name} -> {DATA_DIR / target_name}")
+        print(f"Copied {source_path.name} -> {LOOKUPS_DIR / target_name}")
 
 
 def sync_app_assets() -> None:

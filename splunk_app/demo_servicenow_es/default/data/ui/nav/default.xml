@@ -3,6 +3,14 @@
   <view name="demo_talk_track" />
   <view name="soc_case_management" />
   <view name="mission_control_simulator" />
+  <collection name="Load Demo Data (run once)">
+    <saved search="demo_load_servicenow_incidents" />
+    <saved search="demo_load_servicenow_changes" />
+    <saved search="demo_load_servicenow_cmdb" />
+    <saved search="demo_load_servicenow_users" />
+    <saved search="demo_load_servicenow_task_ci" />
+    <saved search="demo_load_es_incidents" />
+  </collection>
   <collection name="Demo Searches">
     <saved search="demo_validate_servicenow_incidents" />
     <saved search="demo_validate_es_incident_source" />

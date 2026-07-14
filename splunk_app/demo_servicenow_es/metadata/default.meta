@@ -21,3 +21,6 @@ export = system
 
 [inputs]
 export = system
+
+[transforms]
+export = system
