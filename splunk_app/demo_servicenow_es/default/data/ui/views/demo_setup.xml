@@ -37,22 +37,12 @@
           </div>
           <div class="setup-section">
             <h2>3. Load bundled demo data</h2>
-            <div class="setup-note">Scripted inputs often do not appear on Splunk Cloud. Use Load Demo Data saved searches instead (no Data Inputs required).</div>
+            <div class="setup-note">Scripted inputs often do not appear on Splunk Cloud. Open the <strong>Load Demo Data</strong> dashboard in this app (left nav, second item).</div>
             <p><strong>Recommended (Splunk Cloud and Enterprise):</strong></p>
             <ol>
               <li>Create indexes <code>demo_servicenow</code> and <code>demo_security</code> first.</li>
-              <li>In this app, open <strong>Load Demo Data (run once)</strong> in the left navigation.</li>
-              <li>Open each saved search below, click the green <strong>Run</strong> arrow once, wait for completion:
-                <ul>
-                  <li><code>demo_load_servicenow_incidents</code></li>
-                  <li><code>demo_load_servicenow_changes</code></li>
-                  <li><code>demo_load_servicenow_cmdb</code></li>
-                  <li><code>demo_load_servicenow_users</code></li>
-                  <li><code>demo_load_servicenow_task_ci</code></li>
-                  <li><code>demo_load_es_incidents</code></li>
-                </ul>
-              </li>
-              <li>Validate: <code>index=demo_servicenow OR index=demo_security | stats count by index sourcetype</code></li>
+              <li>Open <strong>Load Demo Data</strong> from the app left navigation (between Demo Setup and Demo Talk Track).</li>
+              <li>Follow the on-screen steps: test lookup, click each load link, click Run once, validate.</li>
             </ol>
             <p><strong>Alternative (if scripted inputs are visible):</strong> Settings &gt; Data inputs &gt; Scripts, enable <code>index_demo_csv.py --all</code> once, then disable.</p>
             <p><strong>Alternative (SSH/CLI on search head):</strong></p>
