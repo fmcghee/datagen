@@ -1,0 +1,92 @@
+<dashboard version="1.1" theme="light">
+  <label>Simulate Mission Control Alerts</label>
+  <description>Enable scheduled Notable alerts so findings appear in native Mission Control.</description>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .mc-body { font-family: Arial, sans-serif; color: #53565A; line-height: 1.55; }
+          .mc-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; margin-bottom: 20px; }
+          .mc-hero h1 { margin: 0; font-size: 28px; color: #FFFFFF; }
+          .mc-note { background: #86BC25; color: #FFFFFF; padding: 12px 14px; font-weight: 700; margin-bottom: 16px; }
+          .mc-warn { background: #0076A8; color: #FFFFFF; padding: 12px 14px; margin-bottom: 16px; }
+          .mc-section { margin: 16px 0; padding: 16px 18px; border: 1px solid #000000; background: #FFFFFF; }
+          .mc-section h2 { margin-top: 0; color: #000000; font-size: 18px; }
+          .mc-code { background: #F4F4F4; padding: 10px 12px; font-family: monospace; white-space: pre-wrap; font-size: 11px; margin: 8px 0; }
+          .mc-btn { display: inline-block; margin: 6px 8px 6px 0; padding: 10px 16px; background: #0076A8; color: #FFFFFF; text-decoration: none; font-weight: 700; border-radius: 3px; }
+          .mc-table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 10px 0; }
+          .mc-table th, .mc-table td { border: 1px solid #53565A; padding: 6px 10px; text-align: left; }
+          .mc-table th { background: #000000; color: #FFFFFF; }
+        </style>
+        <div class="mc-body">
+          <div class="mc-hero">
+            <h1>Simulate Mission Control Alerts</h1>
+            <p>Turn demo <code>demo:es:incident</code> rows into native Mission Control findings.</p>
+          </div>
+          <div class="mc-note">Prerequisite: run <a href="/app/demo_servicenow_es/load_demo_data">Load Demo Data</a> first.</div>
+          <div class="mc-warn">Mission Control reads <code>index=notable</code> findings — not raw demo source events. Enable the alerts below.</div>
+
+          <div class="mc-section">
+            <h2>Step 1 — Confirm source data</h2>
+            <div class="mc-code">index=demo_security sourcetype=demo:es:incident | stats count by soc_queue</div>
+            <p>Expected: 9 rows per SOC queue.</p>
+          </div>
+
+          <div class="mc-section">
+            <h2>Step 2 — Enable bundled alerts</h2>
+            <ol>
+              <li>Open <strong>Settings → Searches, reports, and alerts</strong></li>
+              <li>Filter app: <code>demo_servicenow_es</code></li>
+              <li>Find and <strong>Enable</strong> (toggle on):
+                <ul>
+                  <li><code>demo_mc_alert_soc1</code></li>
+                  <li><code>demo_mc_alert_soc2</code></li>
+                </ul>
+              </li>
+              <li>Wait 5 minutes for the schedule, or open each alert and run once</li>
+            </ol>
+            <a class="mc-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_mc_alert_soc1&amp;dispatch.earliest=-90d%40d&amp;dispatch.latest=now">Preview SOC 1 alert SPL</a>
+            <a class="mc-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_mc_alert_soc2&amp;dispatch.earliest=-90d%40d&amp;dispatch.latest=now">Preview SOC 2 alert SPL</a>
+          </div>
+
+          <div class="mc-section">
+            <h2>Step 3 — Validate findings</h2>
+            <div class="mc-code">index=notable earliest=-90d
+| search rule_name="Demo - Mission Control SOC*"
+| stats count by rule_name</div>
+            <p>Expected: ~9 findings per SOC queue after first successful run.</p>
+          </div>
+
+          <div class="mc-section">
+            <h2>Step 4 — Open Mission Control</h2>
+            <p>Enterprise Security → Mission Control → Analyst queue (Last 90 days)</p>
+            <p>Saved view filters:</p>
+            <div class="mc-code">"soc_queue=\"SOC 1 Queue\""
+"soc_queue=\"SOC 2 Queue\""</div>
+          </div>
+
+          <div class="mc-section">
+            <h2>Notable action field mappings (if you rebuild alerts manually)</h2>
+            <table class="mc-table">
+              <tr><th>Notable field</th><th>Token</th></tr>
+              <tr><td>Title</td><td><code>$name$</code></td></tr>
+              <tr><td>Description</td><td><code>$description$</code></td></tr>
+              <tr><td>Security domain</td><td><code>threat</code></td></tr>
+              <tr><td>Severity</td><td><code>$severity$</code></td></tr>
+              <tr><td>Entity type</td><td><code>system</code></td></tr>
+              <tr><td>Entity</td><td><code>$risk_object$</code></td></tr>
+              <tr><td>Risk score</td><td><code>$risk_score$</code></td></tr>
+              <tr><td>Suppress field</td><td><code>notable_id</code></td></tr>
+            </table>
+          </div>
+
+          <div class="mc-section">
+            <h2>Fallback</h2>
+            <p>If native Mission Control stays empty, use <a href="/app/demo_servicenow_es/mission_control_simulator">Mission Control Simulator</a> for the demo queue UI.</p>
+            <p>See <code>docs/SIMULATE_MISSION_CONTROL_ALERTS.md</code> in this app.</p>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+</dashboard>

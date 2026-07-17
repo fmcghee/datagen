@@ -2,6 +2,27 @@
 
 Synthetic demo data generators and ready-to-use datasets.
 
+## Portable Splunk app (recommended for demos)
+
+Install everything as a single Splunk app you can copy to any search head:
+
+```bash
+python3 scripts/build_splunk_demo_app.py --package
+```
+
+This refreshes bundled CSV data and creates:
+
+- App folder: `splunk_app/demo_servicenow_es/`
+- Install package: `dist/demo_servicenow_es.tar.gz`
+- **Upload copy:** `upload/demo_servicenow_es.tar.gz` (same package, easy to find/download)
+
+Copy the app folder or extract the tarball to `$SPLUNK_HOME/etc/apps/`,
+restart Splunk, then open **ServiceNow ES Demo** and follow the **Demo Setup**
+dashboard. Use **Demo Talk Track** for the full 25–30 minute presenter script.
+
+See [`splunk_app/demo_servicenow_es/README.md`](splunk_app/demo_servicenow_es/README.md)
+and [`splunk_app/demo_servicenow_es/DEMO_TALK_TRACK.md`](splunk_app/demo_servicenow_es/DEMO_TALK_TRACK.md).
+
 ## Available datasets
 
 - [`datasets/servicenow`](datasets/servicenow/README.md) - realistic synthetic
@@ -14,6 +35,32 @@ Use `send_csv_to_splunk.py` to read CSV files from the `output/` directory and
 send each row to Splunk HTTP Event Collector (HEC) as a JSON event. CSV columns
 are preserved inside the JSON event payload so Splunk can extract them as event
 fields.
+
+### Refresh current-dated demo data
+
+Regenerate the ServiceNow demo data before a customer demo so timestamps roll
+forward with the current UTC calendar:
+
+```bash
+python3 scripts/generate_servicenow_demo_data.py --base-time now
+python3 scripts/validate_servicenow_cim.py
+```
+
+This writes the canonical ServiceNow dataset under `datasets/servicenow/` and
+HEC-ready CSV aliases under `output/`:
+
+```text
+output/servicenow_incidents.csv
+output/servicenow_cmdb.csv
+output/servicenow_changes.csv
+output/servicenow_users.csv
+```
+
+For a fully repeatable static dataset, use:
+
+```bash
+python3 scripts/generate_servicenow_demo_data.py --static
+```
 
 ### Supported CSV files
 
@@ -28,6 +75,7 @@ fields.
 | `servicenow_cmdb.csv` | `demo_servicenow` | `demo:snow:cmdb_ci` |
 | `servicenow_changes.csv` | `demo_servicenow` | `demo:snow:change` |
 | `servicenow_users.csv` | `demo_servicenow` | `demo:snow:user` |
+| `es_incidents.csv` | `demo_security` | `demo:es:incident` |
 
 The script parses the first available timestamp field from `_time`, `time`,
 `timestamp`, or `opened_at` and sends it as the Splunk HEC event `time`. The
@@ -61,6 +109,11 @@ without sending data:
 ```bash
 python3 send_csv_to_splunk.py --dry-run
 ```
+
+If only the ServiceNow demo files are present in `output/`, the dry-run prints
+warnings for missing security telemetry CSVs. That is expected unless you have
+also generated `auth.csv`, `endpoint.csv`, `dns.csv`, `network.csv`, and
+`web.csv`.
 
 Send all supported CSV files that exist in `output/`:
 
@@ -111,4 +164,11 @@ Validate security telemetry sourcetypes:
 ```spl
 index=demo_security sourcetype IN (demo:auth, demo:endpoint, demo:dns, demo:network, demo:web)
 | stats count by sourcetype
+```
+
+Validate ES incident source rows that can feed Mission Control:
+
+```spl
+index=demo_security sourcetype=demo:es:incident
+| stats count values(snow_incident_number) as linked_servicenow_cases by soc_queue status_name urgency
 ```

@@ -1,0 +1,28 @@
+<nav search_view="search" color="#86BC25">
+  <view name="demo_setup" default="true" />
+  <view name="load_demo_data" />
+  <view name="simulate_mission_control" />
+  <view name="demo_talk_track" />
+  <view name="soc_case_management" />
+  <view name="mission_control_simulator" />
+  <collection name="Load Demo Data (run once)">
+    <saved search="demo_load_all_data" />
+    <saved search="demo_load_servicenow_changes" />
+    <saved search="demo_load_servicenow_cmdb" />
+    <saved search="demo_load_servicenow_users" />
+    <saved search="demo_load_servicenow_task_ci" />
+    <saved search="demo_load_es_incidents" />
+  </collection>
+  <collection name="Mission Control Alerts">
+    <saved search="demo_mc_alert_soc1" />
+    <saved search="demo_mc_alert_soc2" />
+    <saved search="demo_validate_mc_notables" />
+  </collection>
+  <collection name="Demo Searches">
+    <saved search="demo_validate_servicenow_incidents" />
+    <saved search="demo_validate_es_incident_source" />
+    <saved search="demo_validate_mc_linkage" />
+    <saved search="demo_es85_detection_soc1_template" />
+    <saved search="demo_es85_detection_soc2_template" />
+  </collection>
+</nav>

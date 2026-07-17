@@ -1,13 +1,16 @@
 {
+  "base_time": "2026-07-14T23:00:00Z",
   "cim_mappings": {
     "changes": "Change.All_Changes",
     "cmdb_ci": "Inventory.All_Inventory",
+    "es_incidents": "Mission Control/ES incident source fields",
     "incidents": "Change.All_Changes",
     "task_ci": "Change.All_Changes",
     "users": "Enterprise Security identity lookup-friendly fields"
   },
   "cim_note": "Rows include raw ServiceNow fields plus Splunk CIM-friendly fields. Splunk eventtype/tag configuration is provided under splunk_app/TA-synthetic-servicenow/default.",
-  "generated_at": "2026-05-27T18:00:00Z",
+  "date_mode": "rolling",
+  "generated_at": "2026-07-14T23:00:00Z",
   "name": "Synthetic ServiceNow data for Splunk Enterprise Security demos",
   "privacy_note": "All names, emails, systems, IP addresses, and records are synthetic demo data.",
   "seed": 8675309,
@@ -15,6 +18,7 @@
   "suggested_sourcetypes": {
     "changes": "snow:change_request",
     "cmdb_ci": "snow:cmdb_ci",
+    "es_incidents": "demo:es:incident",
     "incidents": "snow:incident",
     "task_ci": "snow:task_ci",
     "users": "snow:sys_user"
@@ -22,6 +26,7 @@
   "tables": {
     "changes": 45,
     "cmdb_ci": 55,
+    "es_incidents": 18,
     "incidents": 150,
     "task_ci": 235,
     "users": 65

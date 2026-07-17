@@ -1,0 +1,75 @@
+<dashboard version="1.1" theme="light">
+  <label>Load Demo Data</label>
+  <description>One-click load of bundled demo CSV data into demo_servicenow and demo_security indexes. No Data Inputs required.</description>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .load-body { font-family: Arial, sans-serif; color: #53565A; line-height: 1.55; }
+          .load-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; margin-bottom: 20px; }
+          .load-hero h1 { margin: 0; font-size: 28px; color: #FFFFFF; }
+          .load-note { background: #86BC25; color: #FFFFFF; padding: 12px 14px; font-weight: 700; margin-bottom: 16px; }
+          .load-section { margin: 16px 0; padding: 16px 18px; border: 1px solid #000000; background: #FFFFFF; }
+          .load-section h2 { margin-top: 0; color: #000000; font-size: 18px; }
+          .load-btn { display: inline-block; margin: 6px 8px 6px 0; padding: 10px 16px; background: #0076A8; color: #FFFFFF; text-decoration: none; font-weight: 700; border-radius: 3px; }
+          .load-btn:hover { background: #000000; color: #FFFFFF; }
+          .load-code { background: #F4F4F4; padding: 10px 12px; font-family: monospace; white-space: pre-wrap; font-size: 11px; margin: 8px 0; }
+          .load-step { margin: 8px 0; }
+        </style>
+        <div class="load-body">
+          <div class="load-hero">
+            <h1>Load Demo Data</h1>
+            <p>Load synthetic ServiceNow and ES/Mission Control data without scripted inputs.</p>
+          </div>
+          <div class="load-note">Prerequisite: create indexes demo_servicenow and demo_security before loading.</div>
+
+          <div class="load-section">
+            <h2>Step 1 — Test lookups</h2>
+            <p class="load-step">Run this in Search first. You should see 5 rows:</p>
+            <div class="load-code">| inputlookup servicenow_incidents_demo | head 5</div>
+            <p>If you get an error, reinstall the latest <code>demo_servicenow_es.tar.gz</code> from the repository <code>upload/</code> folder.</p>
+          </div>
+
+          <div class="load-section">
+            <h2>Step 2 — Load everything (one click)</h2>
+            <p>Open this saved search and click <strong>Run</strong> once. It loads ServiceNow + ES/Mission Control data.</p>
+            <a class="load-btn" style="background:#86BC25;color:#000000;" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_all_data&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">LOAD ALL DEMO DATA</a>
+          </div>
+
+          <div class="load-section">
+            <h2>Step 3 — Or load datasets individually</h2>
+            <p>Each link opens a saved search. Click the green <strong>Run</strong> button once per link.</p>
+            <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_servicenow_incidents&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">1. ServiceNow Incidents</a>
+            <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_servicenow_changes&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">2. ServiceNow Changes</a>
+            <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_servicenow_cmdb&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">3. ServiceNow CMDB</a>
+            <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_servicenow_users&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">4. ServiceNow Users</a>
+            <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_servicenow_task_ci&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">5. Task-CI Links</a>
+            <a class="load-btn" href="/app/demo_servicenow_es/search?q=%7C%20savedsearch%20demo_load_es_incidents&amp;dispatch.earliest=-1s&amp;dispatch.latest=now">6. ES / Mission Control</a>
+          </div>
+
+          <div class="load-section">
+            <h2>Step 4 — Validate</h2>
+            <div class="load-code">index=demo_servicenow OR index=demo_security | stats count by index sourcetype</div>
+            <p>Then open <a href="/app/demo_servicenow_es/soc_case_management">SOC Case Management</a> or continue <a href="/app/demo_servicenow_es/demo_setup">Demo Setup</a>.</p>
+          </div>
+
+          <div class="load-section">
+            <h2>Fallback — paste SPL in Search</h2>
+            <p>If links do not work, paste each block into Search and run once:</p>
+            <div class="load-code">| inputlookup servicenow_incidents_demo | eval _time=coalesce(strptime(opened_at,"%Y-%m-%d %H:%M:%S"), strptime(sys_updated_on,"%Y-%m-%d %H:%M:%S"), now()) | collect index=demo_servicenow sourcetype=demo:snow:incident addtime=false marker=0
+
+| inputlookup servicenow_changes_demo | eval _time=coalesce(strptime(opened_at,"%Y-%m-%d %H:%M:%S"), strptime(sys_updated_on,"%Y-%m-%d %H:%M:%S"), now()) | collect index=demo_servicenow sourcetype=demo:snow:change addtime=false marker=0
+
+| inputlookup servicenow_cmdb_demo | eval _time=coalesce(strptime(sys_updated_on,"%Y-%m-%d %H:%M:%S"), strptime(sys_created_on,"%Y-%m-%d %H:%M:%S"), now()) | collect index=demo_servicenow sourcetype=demo:snow:cmdb_ci addtime=false marker=0
+
+| inputlookup servicenow_users_demo | eval _time=coalesce(strptime(sys_updated_on,"%Y-%m-%d %H:%M:%S"), strptime(sys_created_on,"%Y-%m-%d %H:%M:%S"), now()) | collect index=demo_servicenow sourcetype=demo:snow:user addtime=false marker=0
+
+| inputlookup servicenow_task_ci_demo | eval _time=coalesce(strptime(sys_updated_on,"%Y-%m-%d %H:%M:%S"), strptime(sys_created_on,"%Y-%m-%d %H:%M:%S"), now()) | collect index=demo_servicenow sourcetype=demo:snow:task_ci addtime=false marker=0
+
+| inputlookup es_incidents_demo | eval _time=coalesce(strptime(_time,"%Y-%m-%dT%H:%M:%SZ"), strptime(timestamp,"%Y-%m-%d %H:%M:%S"), now()) | collect index=demo_security sourcetype=demo:es:incident addtime=false marker=0</div>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+</dashboard>

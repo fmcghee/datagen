@@ -1,0 +1,17 @@
+# Copy to local/indexes.conf or merge into your index configuration.
+# Requires indexes edit capability on Splunk Enterprise. On Splunk Cloud,
+# create these indexes in the admin console before loading demo data.
+
+[demo_servicenow]
+homePath = $SPLUNK_DB/demo_servicenow/db
+coldPath = $SPLUNK_DB/demo_servicenow/colddb
+thawedPath = $SPLUNK_DB/demo_servicenow/thaweddb
+maxDataSize = 500
+frozenTimePeriodInSecs = 2592000
+
+[demo_security]
+homePath = $SPLUNK_DB/demo_security/db
+coldPath = $SPLUNK_DB/demo_security/colddb
+thawedPath = $SPLUNK_DB/demo_security/thaweddb
+maxDataSize = 500
+frozenTimePeriodInSecs = 2592000

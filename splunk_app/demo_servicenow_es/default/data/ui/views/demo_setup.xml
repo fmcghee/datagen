@@ -1,0 +1,109 @@
+<dashboard version="1.1" theme="light">
+  <label>Demo Setup</label>
+  <description>Install, load, and validate the ServiceNow ES demo app on any Splunk instance.</description>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .setup-body { font-family: Arial, sans-serif; color: #53565A; line-height: 1.5; }
+          .setup-hero { background: #000000; color: #FFFFFF; padding: 24px 28px; border-bottom: 8px solid #86BC25; }
+          .setup-hero h1 { margin: 0; font-size: 30px; color: #FFFFFF; }
+          .setup-section { margin: 18px 0; padding: 16px 18px; border: 1px solid #000000; background: #FFFFFF; }
+          .setup-section h2 { margin-top: 0; color: #000000; font-size: 18px; }
+          .setup-section ol, .setup-section ul { margin: 8px 0 0 20px; }
+          .setup-code { background: #F4F4F4; padding: 10px 12px; font-family: monospace; white-space: pre-wrap; }
+          .setup-note { background: #86BC25; color: #FFFFFF; padding: 10px 12px; font-weight: 700; }
+        </style>
+        <div class="setup-body">
+          <div class="setup-hero">
+            <h1>ServiceNow ES Demo Setup</h1>
+            <p>Portable synthetic ServiceNow, Mission Control source data, and SOC dashboards.</p>
+          </div>
+          <div class="setup-section">
+            <h2>1. Install the app</h2>
+            <ol>
+              <li>Copy the <code>demo_servicenow_es</code> folder to <code>$SPLUNK_HOME/etc/apps/</code> on your search head, or install the packaged <code>.tar.gz</code> from the repository <code>dist/</code> directory.</li>
+              <li>Restart Splunk or reload the app from Manage Apps.</li>
+            </ol>
+          </div>
+          <div class="setup-section">
+            <h2>2. Create indexes</h2>
+            <p>Create these indexes before loading demo data:</p>
+            <ul>
+              <li><code>demo_servicenow</code></li>
+              <li><code>demo_security</code></li>
+            </ul>
+            <p>Use <code>default/indexes.conf.example</code> as a reference on Splunk Enterprise. On Splunk Cloud, create the indexes in the admin console.</p>
+          </div>
+          <div class="setup-section">
+            <h2>3. Load bundled demo data</h2>
+            <div class="setup-note">Scripted inputs often do not appear on Splunk Cloud. Open the <strong>Load Demo Data</strong> dashboard in this app (left nav, second item).</div>
+            <p><strong>Recommended (Splunk Cloud and Enterprise):</strong></p>
+            <ol>
+              <li>Create indexes <code>demo_servicenow</code> and <code>demo_security</code> first.</li>
+              <li>Open <strong>Load Demo Data</strong> from the app left navigation (between Demo Setup and Demo Talk Track).</li>
+              <li>Follow the on-screen steps: test lookup, click each load link, click Run once, validate.</li>
+            </ol>
+            <p><strong>Alternative (if scripted inputs are visible):</strong> Settings &gt; Data inputs &gt; Scripts, enable <code>index_demo_csv.py --all</code> once, then disable.</p>
+            <p><strong>Alternative (SSH/CLI on search head):</strong></p>
+            <div class="setup-code">$SPLUNK_HOME/bin/splunk cmd python $SPLUNK_HOME/etc/apps/demo_servicenow_es/bin/index_demo_csv.py --all --force</div>
+          </div>
+          <div class="setup-section">
+            <h2>3b. Why are Scripts missing from Data Inputs?</h2>
+            <p>Many Splunk Cloud stacks do not expose custom app scripted inputs in the UI. This is expected. The <strong>Load Demo Data</strong> saved searches above work without Data Inputs.</p>
+            <p>Confirm lookups loaded: <code>| inputlookup servicenow_incidents_demo | head 5</code></p>
+          </div>
+          <div class="setup-section">
+            <h2>4. Validate indexed data</h2>
+            <p>Open the <strong>Demo Searches</strong> menu and run:</p>
+            <ul>
+              <li><code>demo_validate_servicenow_incidents</code></li>
+              <li><code>demo_validate_es_incident_source</code></li>
+            </ul>
+          </div>
+          <div class="setup-section">
+            <h2>5. ES 8.5 Mission Control findings</h2>
+            <p><strong>Primary path:</strong> event-based detections with <strong>Output &gt; Create findings</strong>, or classic ES scheduled alerts with a <strong>Finding / Notable</strong> action (both populate <code>index=notable</code> and Mission Control).</p>
+            <ol>
+              <li>Copy the saved searches <code>demo_es85_detection_soc1_template</code> and <code>demo_es85_detection_soc2_template</code> into <strong>Security content &gt; Event-based detections</strong>, <em>or</em> create classic ES alerts from the same SPL.</li>
+              <li>For detections: set <strong>Output &gt; Create findings</strong> with tokens such as <code>$name$</code>, <code>$description$</code>, and entity type <strong>system</strong> with <code>$risk_object$</code> (optional <code>$risk_score$</code>, <code>$severity$</code>).</li>
+              <li>For classic alerts: enable <strong>Trigger Actions &gt; Notable</strong> (or Finding action in ES 8.5). Schedule every 5–15 minutes; set earliest to <code>-30d</code> for demo data.</li>
+              <li>Enable the rules and confirm events in <code>index=notable</code>. You do <strong>not</strong> need a Mission Control Incidents adaptive response action in ES 8.5.</li>
+              <li>Run <code>demo_validate_mc_linkage</code> from <strong>Demo Searches</strong> to confirm cross-index linkage.</li>
+              <li>In Mission Control, save analyst queue views:
+                <div class="setup-code">"soc_queue=\"SOC 1 Queue\""
+"soc_queue=\"SOC 2 Queue\""</div>
+              </li>
+            </ol>
+          </div>
+          <div class="setup-section">
+            <h2>5b. Mission Control fallback (if detections fail)</h2>
+            <div class="setup-note">Use this when ES event-based detections cannot write findings to native Mission Control.</div>
+            <ol>
+              <li>Confirm <code>index=demo_security sourcetype=demo:es:incident</code> has rows.</li>
+              <li>Open <strong>Mission Control Simulator</strong> from this app navigation menu.</li>
+              <li>Select <strong>SOC 1 Queue</strong> or <strong>SOC 2 Queue</strong> from the dropdown.</li>
+              <li>Use the analyst queue table and drill down to linked ServiceNow INCs.</li>
+            </ol>
+            <p><code>| makeresults</code> or <code>| collect index=notable</code> alone usually does <strong>not</strong> populate native Mission Control in ES 8.5. See <code>docs/MISSION_CONTROL_ALTERNATIVES.md</code> in this app.</p>
+          </div>
+          <div class="setup-section">
+            <h2>6. Demo talk track &amp; SOC dashboard</h2>
+            <ol>
+              <li>Open <strong>Demo Talk Track</strong> from this app navigation for a 25–30 minute presenter script.</li>
+              <li>Open <strong>SOC Case Management</strong> for ServiceNow queue, Mission Control linkage, and KPI panels.</li>
+              <li>Optional: import <code>docs/soc_case_management_dashboard_studio.json</code> into Dashboard Studio for a richer layout (see <code>dashboards/README.md</code> in the repository).</li>
+            </ol>
+          </div>
+          <div class="setup-section">
+            <h2>7. Refresh dates before a live demo</h2>
+            <p>From the repository root on a machine with Python 3:</p>
+            <div class="setup-code">python3 scripts/build_splunk_demo_app.py
+python3 scripts/build_splunk_demo_app.py --package</div>
+            <p>Reinstall or copy the refreshed app to your Splunk search head, then reload the scripted inputs with <code>--force</code>.</p>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+</dashboard>

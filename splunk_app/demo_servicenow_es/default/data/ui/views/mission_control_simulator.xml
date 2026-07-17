@@ -1,0 +1,131 @@
+<form version="1.1" theme="light">
+  <label>Mission Control Simulator</label>
+  <description>Demo analyst queue using indexed demo:es:incident rows when ES detections cannot create native Mission Control findings.</description>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="soc_queue">
+      <label>SOC Queue</label>
+      <choice value="SOC 1 Queue">SOC 1 Queue</choice>
+      <choice value="SOC 2 Queue">SOC 2 Queue</choice>
+      <choice value="*">All Queues</choice>
+      <default>SOC 1 Queue</default>
+    </input>
+    <input type="time" token="time_range" searchWhenChanged="true">
+      <label>Time Range</label>
+      <default>
+        <earliest>-365d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <html>
+        <style>
+          .mc-hero { background: #000000; color: #FFFFFF; padding: 20px 24px; border-bottom: 8px solid #86BC25; }
+          .mc-hero h1 { margin: 0; font-size: 28px; color: #FFFFFF; }
+          .mc-hero p { margin: 8px 0 0 0; font-size: 14px; }
+          .mc-note { background: #53565A; color: #FFFFFF; padding: 10px 14px; font-size: 13px; }
+        </style>
+        <div class="mc-hero">
+          <h1>Mission Control Simulator</h1>
+          <p>Analyst queue view backed by <code>index=demo_security sourcetype=demo:es:incident</code>.</p>
+        </div>
+        <div class="mc-note">
+          This is a demo substitute when ES event-based detections cannot write findings to native Mission Control.
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <single>
+        <title>Queue Items</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| search soc_queue="$soc_queue$" OR "$soc_queue$"="*"
+| stats count AS value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Critical / High</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| search soc_queue="$soc_queue$" OR "$soc_queue$"="*"
+| search severity IN ("critical","high")
+| stats count AS value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Linked ServiceNow INCs</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| search soc_queue="$soc_queue$" OR "$soc_queue$"="*"
+| stats dc(snow_incident_number) AS value]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Analyst Queue</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| search soc_queue="$soc_queue$" OR "$soc_queue$"="*"
+| eval Title=name, ID=notable_id, Entity=risk_object, Urgency=urgency, Status=status_name, Owner=assignee
+| table _time Title ID Entity Urgency Status Owner soc_queue snow_incident_number cmdb_ci business_service severity correlation_search mitre_tactic mitre_technique
+| sort - _time]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="count">20</option>
+        <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=search%20index%3Ddemo_servicenow%20sourcetype%3Ddemo%3Asnow%3Aincident%20number%3D%22$row.snow_incident_number$%22&amp;earliest=-30d&amp;latest=now</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Queue by Status</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| search soc_queue="$soc_queue$" OR "$soc_queue$"="*"
+| stats count AS Items by status_name
+| sort - Items]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.seriesColors">[0x0076A8]</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Queue by Urgency</title>
+        <search>
+          <query><![CDATA[index=demo_security sourcetype=demo:es:incident
+| search soc_queue="$soc_queue$" OR "$soc_queue$"="*"
+| stats count AS Items by urgency
+| sort - Items]]></query>
+          <earliest>$time_range.earliest$</earliest>
+          <latest>$time_range.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.seriesColors">[0x86BC25,0x0076A8,0x00ABAB,0x53565A]</option>
+      </chart>
+    </panel>
+  </row>
+</form>
